@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 
 type AgentName = 'BRIAN' | 'LESTER' | 'ALESSA';
-type SenderType = AgentName | 'USER';
+type SenderType = AgentName | 'USER' | 'SYSTEM';
 
 interface Message {
   id: number;
@@ -46,7 +46,7 @@ export default function ChatPage() {
     {
       id: 1,
       sender: 'BRIAN',
-      text: "Hey! I'm Brian, your Campaign Strategist. Ready to create some killer ad concepts? 💡",
+      text: "Hey! I'm Brian, your Campaign Strategist. Ready to create some killer ad concepts? 💡\n\n💡 TIP: Use 'Pipeline Mode' to run all 3 agents automatically!",
       timestamp: new Date(),
     },
   ]);
@@ -54,6 +54,7 @@ export default function ChatPage() {
   const [inputText, setInputText] = useState('');
   const [activeAgent, setActiveAgent] = useState<AgentName>('BRIAN');
   const [isLoading, setIsLoading] = useState(false);
+  const [pipelineMode, setPipelineMode] = useState(false);
 
   const addMessage = (sender: SenderType, text: string) => {
     const newMessage: Message = {
@@ -63,6 +64,60 @@ export default function ChatPage() {
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, newMessage]);
+  };
+
+  const handlePipelineMode = async () => {
+    if (!inputText.trim() || isLoading) return;
+
+    const userMessage = inputText.trim();
+    setInputText('');
+    addMessage('USER', userMessage);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/pipeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: userMessage }),
+      });
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) throw new Error('No reader');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+            
+            if (data.agent === 'SYSTEM' && data.message === 'COMPLETE') {
+              setIsLoading(false);
+              break;
+            }
+
+            if (data.message.startsWith('🔍')) {
+              // Status update - show as system message
+              addMessage('SYSTEM', data.message);
+            } else {
+              // Agent response
+              addMessage(data.agent as AgentName, data.message);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      addMessage('SYSTEM', '❌ Pipeline failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -80,10 +135,10 @@ export default function ChatPage() {
           endpoint = '/api/agent1';
           break;
         case 'LESTER':
-          endpoint = '/api/agent3';  // FIXED: Lester uses agent3 (Brand Safety)
+          endpoint = '/api/agent3';
           break;
         case 'ALESSA':
-          endpoint = '/api/agent2';  // FIXED: Alessa uses agent2 (Prompt Engineer)
+          endpoint = '/api/agent2';
           break;
       }
 
@@ -114,35 +169,59 @@ export default function ChatPage() {
           <p className="text-sm text-gray-400">Zennya Studio</p>
         </div>
 
-        <div className="space-y-4 p-4">
-          {(['BRIAN', 'LESTER', 'ALESSA'] as AgentName[]).map((key) => {
-            const agent = AGENTS[key];
-            return (
-              <button
-                key={key}
-                onClick={() => setActiveAgent(key)}
-                className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
-                  activeAgent === key
-                    ? 'bg-gray-800/50 border border-gray-700/50'
-                    : 'hover:bg-gray-800/30'
-                }`}
-              >
-                <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
-                  <Image
-                    src={agent.avatar}
-                    alt={agent.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="text-left">
-                  <h3 className="font-semibold">{agent.name}</h3>
-                  <p className="text-sm text-gray-400">{agent.status}</p>
-                </div>
-              </button>
-            );
-          })}
+        {/* Pipeline Mode Toggle */}
+        <div className="p-4 border-b border-gray-800/50">
+          <button
+            onClick={() => setPipelineMode(!pipelineMode)}
+            className={`w-full flex items-center justify-between p-3 rounded-lg transition-all ${
+              pipelineMode
+                ? 'bg-orange-500 text-white'
+                : 'bg-gray-800/50 border border-gray-700/50 hover:bg-gray-800'
+            }`}
+          >
+            <span className="font-semibold">
+              {pipelineMode ? '⚡ Pipeline Mode ON' : '🎯 Manual Mode'}
+            </span>
+          </button>
+          <p className="text-xs text-gray-400 mt-2">
+            {pipelineMode 
+              ? 'All 3 agents run automatically' 
+              : 'Select agent manually'}
+          </p>
         </div>
+
+        {/* Agent Selection (only in manual mode) */}
+        {!pipelineMode && (
+          <div className="space-y-4 p-4">
+            {(['BRIAN', 'LESTER', 'ALESSA'] as AgentName[]).map((key) => {
+              const agent = AGENTS[key];
+              return (
+                <button
+                  key={key}
+                  onClick={() => setActiveAgent(key)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
+                    activeAgent === key
+                      ? 'bg-gray-800/50 border border-gray-700/50'
+                      : 'hover:bg-gray-800/30'
+                  }`}
+                >
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
+                    <Image
+                      src={agent.avatar}
+                      alt={agent.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-semibold">{agent.name}</h3>
+                    <p className="text-sm text-gray-400">{agent.status}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* MAIN CHAT */}
@@ -150,18 +229,30 @@ export default function ChatPage() {
         {/* HEADER */}
         <div className="bg-gray-950/50 backdrop-blur-xl border-b border-gray-800/50 p-4">
           <div className="flex items-center gap-3">
-            <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
-              <Image
-                src={AGENTS[activeAgent].avatar}
-                alt={AGENTS[activeAgent].name}
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div>
-              <h2 className="font-semibold">{AGENTS[activeAgent].name}</h2>
-              <p className="text-sm text-gray-400">{AGENTS[activeAgent].status}</p>
-            </div>
+            {pipelineMode ? (
+              <>
+                <div className="text-2xl">⚡</div>
+                <div>
+                  <h2 className="font-semibold">Pipeline Mode</h2>
+                  <p className="text-sm text-gray-400">All agents run automatically</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
+                  <Image
+                    src={AGENTS[activeAgent].avatar}
+                    alt={AGENTS[activeAgent].name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div>
+                  <h2 className="font-semibold">{AGENTS[activeAgent].name}</h2>
+                  <p className="text-sm text-gray-400">{AGENTS[activeAgent].status}</p>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -172,7 +263,7 @@ export default function ChatPage() {
               key={msg.id}
               className={`flex gap-3 ${msg.sender === 'USER' ? 'flex-row-reverse' : ''}`}
             >
-              {msg.sender !== 'USER' && (
+              {msg.sender !== 'USER' && msg.sender !== 'SYSTEM' && (
                 <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
                   <Image
                     src={AGENTS[msg.sender as AgentName].avatar}
@@ -186,9 +277,14 @@ export default function ChatPage() {
                 className={`max-w-2xl rounded-lg p-4 ${
                   msg.sender === 'USER'
                     ? 'bg-orange-500/20 border border-orange-500/30'
+                    : msg.sender === 'SYSTEM'
+                    ? 'bg-gray-700/30 border border-gray-600/30 text-gray-300 text-sm'
                     : 'bg-gray-800/50 border border-gray-700/50'
                 }`}
               >
+                {msg.sender !== 'USER' && msg.sender !== 'SYSTEM' && (
+                  <p className="text-xs text-gray-400 mb-2">{AGENTS[msg.sender as AgentName].name}</p>
+                )}
                 <p className="whitespace-pre-wrap">{msg.text}</p>
                 <p className="text-xs text-gray-500 mt-2">
                   {msg.timestamp.toLocaleTimeString()}
@@ -198,16 +294,10 @@ export default function ChatPage() {
           ))}
           {isLoading && (
             <div className="flex gap-3">
-              <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
-                <Image
-                  src={AGENTS[activeAgent].avatar}
-                  alt={AGENTS[activeAgent].name}
-                  fill
-                  className="object-cover"
-                />
-              </div>
               <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
-                <p className="text-gray-400">Thinking...</p>
+                <p className="text-gray-400">
+                  {pipelineMode ? '⚡ Running pipeline...' : 'Thinking...'}
+                </p>
               </div>
             </div>
           )}
@@ -220,17 +310,17 @@ export default function ChatPage() {
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder={`Message ${AGENTS[activeAgent].name}...`}
+              onKeyPress={(e) => e.key === 'Enter' && (pipelineMode ? handlePipelineMode() : handleSendMessage())}
+              placeholder={pipelineMode ? "Describe your campaign..." : `Message ${AGENTS[activeAgent].name}...`}
               className="flex-1 bg-gray-800/50 border border-gray-700/50 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500/50"
               disabled={isLoading}
             />
             <button
-              onClick={handleSendMessage}
+              onClick={pipelineMode ? handlePipelineMode : handleSendMessage}
               disabled={isLoading || !inputText.trim()}
               className="bg-orange-500 hover:bg-orange-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition-all"
             >
-              Send
+              {pipelineMode ? '⚡ Run Pipeline' : 'Send'}
             </button>
           </div>
         </div>
