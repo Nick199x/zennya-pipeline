@@ -4,10 +4,11 @@ import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 
 type AgentName = 'BRIAN' | 'LESTER' | 'ALESSA';
+type SenderType = AgentName | 'USER';
 
 interface Message {
   id: number;
-  sender: AgentName | 'USER';
+  sender: SenderType;
   text: string;
   timestamp: Date;
 }
@@ -40,6 +41,10 @@ const AGENTS: Record<AgentName, AgentConfig> = {
   },
 };
 
+const isAgentName = (sender: SenderType): sender is AgentName => {
+  return sender !== 'USER';
+};
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -62,7 +67,7 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages]);
 
-  const addMessage = (sender: AgentName | 'USER', text: string) => {
+  const addMessage = (sender: SenderType, text: string) => {
     setMessages((prev) => [
       ...prev,
       {
@@ -210,7 +215,7 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {messages.map((message) => {
             const isUser = message.sender === 'USER';
-            const agent = !isUser ? AGENTS[message.sender as AgentName] : null;
+            const agent = isAgentName(message.sender) ? AGENTS[message.sender] : null;
             const { positive, negative } = message.sender === 'ALESSA' ? parsePrompts(message.text) : { positive: null, negative: null };
 
             return (
@@ -229,7 +234,7 @@ export default function ChatPage() {
                 )}
 
                 <div className={`max-w-2xl ${isUser ? 'bg-gray-700' : 'bg-[#252530]'} rounded-lg p-4 border-l-4 ${
-                  !isUser && agent ? `border-${agent.color.replace('bg-', '')}` : 'border-gray-600'
+                  agent ? 'border-blue-600' : 'border-gray-600'
                 }`}>
                   {!isUser && agent && (
                     <div className="flex items-center gap-2 mb-2">
