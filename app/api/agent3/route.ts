@@ -10,26 +10,19 @@ const client = new Anthropic({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { concepts } = body;
+    const { prompt } = body;
 
     const systemPromptPath = join(process.cwd(), 'prompts', 'agent3_system.md');
     const systemPrompt = readFileSync(systemPromptPath, 'utf-8');
 
-    const userPrompt = `
-Concepts to evaluate:
-${concepts}
-
-Evaluate these concepts following the guidelines above.
-`;
-
-    console.log('🔍 AGENT 3 (Lester) - Evaluating...');
+    console.log('🔍 AGENT 3 (Lester) - Brand Safety responding...');
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4000,
       temperature: 0.3,
       system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
+      messages: [{ role: 'user', content: prompt }],
     });
 
     const result = message.content[0].type === 'text' ? message.content[0].text : '';
