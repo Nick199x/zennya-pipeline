@@ -80,10 +80,10 @@ export default function ChatPage() {
           endpoint = '/api/agent1';
           break;
         case 'LESTER':
-          endpoint = '/api/agent2';
+          endpoint = '/api/agent3';  // FIXED: Lester uses agent3 (Brand Safety)
           break;
         case 'ALESSA':
-          endpoint = '/api/agent3';
+          endpoint = '/api/agent2';  // FIXED: Alessa uses agent2 (Prompt Engineer)
           break;
       }
 
@@ -148,71 +148,54 @@ export default function ChatPage() {
       {/* MAIN CHAT */}
       <div className="flex-1 flex flex-col">
         {/* HEADER */}
-        <div className="bg-gray-950/50 backdrop-blur-xl border-b border-gray-800/50 p-4 flex items-center gap-3">
-          <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
-            <Image
-              src={AGENTS[activeAgent].avatar}
-              alt={AGENTS[activeAgent].name}
-              fill
-              className="object-cover"
-            />
-          </div>
-          <div>
-            <h2 className="font-bold">{AGENTS[activeAgent].name}</h2>
-            <p className="text-sm text-gray-400">{AGENTS[activeAgent].status}</p>
+        <div className="bg-gray-950/50 backdrop-blur-xl border-b border-gray-800/50 p-4">
+          <div className="flex items-center gap-3">
+            <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
+              <Image
+                src={AGENTS[activeAgent].avatar}
+                alt={AGENTS[activeAgent].name}
+                fill
+                className="object-cover"
+              />
+            </div>
+            <div>
+              <h2 className="font-semibold">{AGENTS[activeAgent].name}</h2>
+              <p className="text-sm text-gray-400">{AGENTS[activeAgent].status}</p>
+            </div>
           </div>
         </div>
 
         {/* MESSAGES */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.map((msg) => {
-            const isUser = msg.sender === 'USER';
-            const agent = isUser ? null : AGENTS[msg.sender as AgentName];
-
-            return (
-              <div
-                key={msg.id}
-                className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
-              >
-                {!isUser && agent && (
-                  <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
-                    <Image
-                      src={agent.avatar}
-                      alt={agent.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                )}
-
-                <div
-                  className={`max-w-2xl p-4 rounded-lg ${
-                    isUser
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-800/50 backdrop-blur-sm border border-gray-700/50'
-                  }`}
-                >
-                  {!isUser && agent && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-semibold">{agent.name}</span>
-                      <span className="text-xs text-gray-400">{agent.status}</span>
-                    </div>
-                  )}
-                  <p className="whitespace-pre-wrap">{msg.text}</p>
-                  <p className="text-xs text-gray-400 mt-2">
-                    {msg.timestamp.toLocaleTimeString()}
-                  </p>
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex gap-3 ${msg.sender === 'USER' ? 'flex-row-reverse' : ''}`}
+            >
+              {msg.sender !== 'USER' && (
+                <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
+                  <Image
+                    src={AGENTS[msg.sender as AgentName].avatar}
+                    alt={AGENTS[msg.sender as AgentName].name}
+                    fill
+                    className="object-cover"
+                  />
                 </div>
-
-                {isUser && (
-                  <div className="w-10 h-10 bg-gray-700/50 rounded-full flex items-center justify-center font-bold flex-shrink-0">
-                    U
-                  </div>
-                )}
+              )}
+              <div
+                className={`max-w-2xl rounded-lg p-4 ${
+                  msg.sender === 'USER'
+                    ? 'bg-orange-500/20 border border-orange-500/30'
+                    : 'bg-gray-800/50 border border-gray-700/50'
+                }`}
+              >
+                <p className="whitespace-pre-wrap">{msg.text}</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  {msg.timestamp.toLocaleTimeString()}
+                </p>
               </div>
-            );
-          })}
-
+            </div>
+          ))}
           {isLoading && (
             <div className="flex gap-3">
               <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
@@ -223,35 +206,31 @@ export default function ChatPage() {
                   className="object-cover"
                 />
               </div>
-              <div className="bg-gray-800/50 border border-gray-700/50 p-4 rounded-lg">
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" />
-                  <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                  <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                </div>
+              <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+                <p className="text-gray-400">Thinking...</p>
               </div>
             </div>
           )}
         </div>
 
         {/* INPUT */}
-        <div className="border-t border-gray-800/50 p-4 bg-gray-950/30 backdrop-blur-xl">
+        <div className="bg-gray-950/50 backdrop-blur-xl border-t border-gray-800/50 p-4">
           <div className="flex gap-3">
             <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Describe your product or campaign idea..."
-              className="flex-1 bg-gray-800/50 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700/50"
+              placeholder={`Message ${AGENTS[activeAgent].name}...`}
+              className="flex-1 bg-gray-800/50 border border-gray-700/50 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500/50"
               disabled={isLoading}
             />
             <button
               onClick={handleSendMessage}
               disabled={isLoading || !inputText.trim()}
-              className="bg-orange-500 hover:bg-orange-600 disabled:bg-gray-700 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition-colors"
+              className="bg-orange-500 hover:bg-orange-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition-all"
             >
-              Generate
+              Send
             </button>
           </div>
         </div>
