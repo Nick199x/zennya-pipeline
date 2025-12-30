@@ -101,14 +101,14 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Agent Cards with Real Avatars */}
+        {/* Agent Cards with Circular Avatars */}
         <div className="mt-32 max-w-5xl mx-auto">
           <h2 className="text-4xl font-bold text-center mb-16">Meet Your AI Team</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Brian */}
             <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:border-blue-500/50 transition-all">
-              <div className="relative w-24 h-24 rounded-full overflow-hidden mx-auto mb-4 border-4 border-blue-500">
+              <div className="relative w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 border-4 border-blue-500 flex-shrink-0">
                 <Image
                   src="/images/team/brian-avatar.jpg"
                   alt="Brian"
@@ -126,7 +126,7 @@ export default function LandingPage() {
 
             {/* Lester */}
             <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:border-green-500/50 transition-all">
-              <div className="relative w-24 h-24 rounded-full overflow-hidden mx-auto mb-4 border-4 border-green-500">
+              <div className="relative w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 border-4 border-green-500 flex-shrink-0">
                 <Image
                   src="/images/team/lester-avatar.jpg"
                   alt="Lester"
@@ -144,7 +144,7 @@ export default function LandingPage() {
 
             {/* Alessa */}
             <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:border-purple-500/50 transition-all">
-              <div className="relative w-24 h-24 rounded-full overflow-hidden mx-auto mb-4 border-4 border-purple-500">
+              <div className="relative w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 border-4 border-purple-500 flex-shrink-0">
                 <Image
                   src="/images/team/alessa-avatar.jpg"
                   alt="Alessa"
