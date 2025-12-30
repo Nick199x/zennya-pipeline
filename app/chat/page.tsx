@@ -106,10 +106,10 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 text-white">
       {/* LEFT SIDEBAR - Agent List */}
-      <div className="w-72 bg-gray-950 border-r border-gray-800 flex flex-col">
-        <div className="p-4 border-b border-gray-800">
+      <div className="w-72 bg-gray-950/50 backdrop-blur-xl border-r border-gray-800/50 flex flex-col">
+        <div className="p-4 border-b border-gray-800/50">
           <h1 className="text-xl font-bold">zennya<span className="text-orange-500">.team</span></h1>
           <p className="text-sm text-gray-400">Zennya Studio</p>
         </div>
@@ -123,17 +123,19 @@ export default function ChatPage() {
                 onClick={() => setActiveAgent(key)}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
                   activeAgent === key
-                    ? 'bg-gray-800 border border-gray-700'
-                    : 'hover:bg-gray-800/50'
+                    ? 'bg-gray-800/50 border border-gray-700/50 backdrop-blur-sm'
+                    : 'hover:bg-gray-800/30'
                 }`}
               >
-                <Image
-                  src={agent.avatar}
-                  alt={agent.name}
-                  width={48}
-                  height={48}
-                  className="rounded-full object-cover"
-                />
+                <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                  <Image
+                    src={agent.avatar}
+                    alt={agent.name}
+                    width={48}
+                    height={48}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <div className="text-left">
                   <h3 className="font-semibold">{agent.name}</h3>
                   <p className="text-sm text-gray-400">{agent.status}</p>
@@ -147,14 +149,16 @@ export default function ChatPage() {
       {/* MAIN CHAT AREA */}
       <div className="flex-1 flex flex-col">
         {/* CHAT HEADER */}
-        <div className="bg-gray-950 border-b border-gray-800 p-4 flex items-center gap-3">
-          <Image
-            src={AGENTS[activeAgent].avatar}
-            alt={AGENTS[activeAgent].name}
-            width={40}
-            height={40}
-            className="rounded-full object-cover"
-          />
+        <div className="bg-gray-950/50 backdrop-blur-xl border-b border-gray-800/50 p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+            <Image
+              src={AGENTS[activeAgent].avatar}
+              alt={AGENTS[activeAgent].name}
+              width={40}
+              height={40}
+              className="w-full h-full object-cover"
+            />
+          </div>
           <div>
             <h2 className="font-bold">{AGENTS[activeAgent].name}</h2>
             <p className="text-sm text-gray-400">{AGENTS[activeAgent].status}</p>
@@ -173,20 +177,22 @@ export default function ChatPage() {
                 className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
               >
                 {!isUser && agent && (
-                  <Image
-                    src={agent.avatar}
-                    alt={agent.name}
-                    width={40}
-                    height={40}
-                    className="rounded-full object-cover"
-                  />
+                  <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                    <Image
+                      src={agent.avatar}
+                      alt={agent.name}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                 )}
 
                 <div
                   className={`max-w-2xl p-4 rounded-lg ${
                     isUser
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-800 border border-gray-700'
+                      : 'bg-gray-800/50 backdrop-blur-sm border border-gray-700/50'
                   }`}
                 >
                   {!isUser && agent && (
@@ -202,7 +208,7 @@ export default function ChatPage() {
                 </div>
 
                 {isUser && (
-                  <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center font-bold">
+                  <div className="w-10 h-10 bg-gray-700/50 backdrop-blur-sm rounded-full flex items-center justify-center font-bold flex-shrink-0">
                     U
                   </div>
                 )}
@@ -212,14 +218,16 @@ export default function ChatPage() {
 
           {isLoading && (
             <div className="flex gap-3">
-              <Image
-                src={AGENTS[activeAgent].avatar}
-                alt={AGENTS[activeAgent].name}
-                width={40}
-                height={40}
-                className="rounded-full object-cover"
-              />
-              <div className="bg-gray-800 border border-gray-700 p-4 rounded-lg">
+              <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                <Image
+                  src={AGENTS[activeAgent].avatar}
+                  alt={AGENTS[activeAgent].name}
+                  width={40}
+                  height={40}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 p-4 rounded-lg">
                 <div className="flex gap-1">
                   <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" />
                   <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-100" />
@@ -231,7 +239,7 @@ export default function ChatPage() {
         </div>
 
         {/* INPUT AREA */}
-        <div className="border-t border-gray-800 p-4">
+        <div className="border-t border-gray-800/50 p-4 bg-gray-950/30 backdrop-blur-xl">
           <div className="flex gap-3">
             <input
               type="text"
@@ -239,7 +247,7 @@ export default function ChatPage() {
               onChange={(e) => setInputText(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
               placeholder="Describe your product or campaign idea..."
-              className="flex-1 bg-gray-800 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 bg-gray-800/50 backdrop-blur-sm text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700/50"
               disabled={isLoading}
             />
             <button
