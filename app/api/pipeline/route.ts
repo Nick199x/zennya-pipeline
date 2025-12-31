@@ -77,35 +77,58 @@ export async function POST(request: NextRequest) {
     const alessaResult = alessaResponse.content[0].type === 'text' ? alessaResponse.content[0].text : '';
     console.log('✅ Alessa done');
 
-    // STEP 4: EXTRACT NANOBANANA PROMPTS FROM CODE BLOCKS 🍌
-    console.log('🍌 Extracting NanoBanana prompts...');
+    // ============================================
+    // STEP 4: CLEAN EXTRACTION OF JUST THE PROMPTS 🍌
+    // ============================================
+    console.log('🍌 Pierre extracting CLEAN prompts...');
     
     const imagePrompts: string[] = [];
     
-    // Find all POSITIVE PROMPT code blocks
-    const positivePromptRegex = /\*\*✨ POSITIVE PROMPT:\*\*\s*```(?:[\w]*)\s*([\s\S]*?)```/gi;
+    // Find POSITIVE PROMPT sections and extract ONLY the code block content
+    const regex = /\*\*✨ POSITIVE PROMPT:\*\*\s*```[\w]*\s*([\s\S]*?)```/gi;
     let match;
     
-    while ((match = positivePromptRegex.exec(alessaResult)) !== null) {
-      const promptText = match[1].trim();
-      if (promptText.length > 30) {
-        imagePrompts.push(promptText);
-        console.log(`✓ Found NanoBanana prompt ${imagePrompts.length}: ${promptText.substring(0, 80)}...`);
+    while ((match = regex.exec(alessaResult)) !== null) {
+      let rawPrompt = match[1].trim();
+      
+      // Clean up the prompt - remove metadata/instructions
+      // Keep only the actual descriptive text
+      const lines = rawPrompt.split('\n');
+      const cleanedLines = lines.filter(line => {
+        const trimmed = line.trim();
+        // Skip empty lines, headers, and technical metadata
+        if (!trimmed) return false;
+        if (trimmed.startsWith('Use uploaded')) return false;
+        if (trimmed.includes('NO text')) return false;
+        if (trimmed.includes('NO logo')) return false;
+        if (trimmed.match(/^\(.*:\d+\.\d+\)/)) return false; // Skip (photorealistic:1.4) style
+        return true;
+      });
+      
+      const cleanPrompt = cleanedLines.join(' ').trim();
+      
+      if (cleanPrompt.length > 50) {
+        imagePrompts.push(cleanPrompt);
+        console.log(`✅ Extracted clean prompt ${imagePrompts.length}:`);
+        console.log(`   ${cleanPrompt.substring(0, 150)}...`);
       }
     }
     
-    console.log(`🍌 Total NanoBanana prompts found: ${imagePrompts.length}`);
+    console.log(`🍌 Total clean prompts: ${imagePrompts.length}`);
     
+    // ============================================
+    // GENERATE IMAGES
+    // ============================================
     const generatedImages = [];
     
     if (imagePrompts.length > 0) {
-      // Generate up to 3 images
       const promptsToGenerate = imagePrompts.slice(0, 3);
       
       for (let i = 0; i < promptsToGenerate.length; i++) {
         const promptText = promptsToGenerate[i];
         
         console.log(`🍌 Pierre generating image ${i + 1}/${promptsToGenerate.length}...`);
+        console.log(`   Sending prompt: ${promptText.substring(0, 100)}...`);
         
         try {
           const imageResponse = await fetch(`${request.nextUrl.origin}/api/generate-image`, {
@@ -113,7 +136,7 @@ export async function POST(request: NextRequest) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               prompt: promptText,
-              model: 'gemini-2.5-flash-image' // Can switch to gemini-3-pro-image-preview for Pro
+              model: 'gemini-2.5-flash-image'
             }),
           });
           
@@ -129,12 +152,12 @@ export async function POST(request: NextRequest) {
           } else {
             console.error(`❌ Image ${i + 1} failed:`, imageData.error);
           }
-        } catch (error) {
-          console.error(`❌ Image ${i + 1} error:`, error);
+        } catch (error: any) {
+          console.error(`❌ Image ${i + 1} error:`, error.message);
         }
       }
     } else {
-      console.log('⚠️  No NanoBanana prompts found in Alessa output');
+      console.log('⚠️  No POSITIVE PROMPT sections found in Alessa output');
     }
 
     console.log(`✅ Pipeline complete! Pierre generated ${generatedImages.length} images`);
