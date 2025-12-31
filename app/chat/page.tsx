@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Image from 'next/image';
 
-type AgentName = 'BRIAN' | 'LESTER' | 'ALESSA';
-type SenderType = AgentName | 'USER' | 'SYSTEM' | 'IMAGE';
+type AgentName = 'BRIAN' | 'LESTER' | 'ALESSA' | 'NIX';
+type SenderType = AgentName | 'USER' | 'SYSTEM';
 
 interface GeneratedImage {
   prompt: string;
@@ -49,6 +49,12 @@ const AGENTS: Record<AgentName, AgentConfig> = {
     status: 'Prompt Engineer',
     color: 'bg-purple-600',
   },
+  NIX: {
+    name: 'Nix',
+    avatar: '/images/team/nix-avatar.jpg',
+    status: 'Image Generator',
+    color: 'bg-yellow-600',
+  },
 };
 
 export default function ChatPage() {
@@ -56,7 +62,7 @@ export default function ChatPage() {
     {
       id: 1,
       sender: 'BRIAN',
-      text: "Hey! I'm Brian, your Campaign Strategist. Ready to create some killer ad concepts? 💡\n\n🍌 NEW: Pipeline now auto-generates images with NanoBanana!",
+      text: "Hey! I'm Brian, your Campaign Strategist. Ready to create some killer ad concepts? 💡",
       timestamp: new Date(),
     },
   ]);
@@ -65,7 +71,6 @@ export default function ChatPage() {
   const [activeAgent, setActiveAgent] = useState<AgentName>('BRIAN');
   const [isLoading, setIsLoading] = useState(false);
   const [pipelineMode, setPipelineMode] = useState(false);
-  const [lastCost, setLastCost] = useState<string | null>(null);
 
   const addMessage = (sender: SenderType, text: string, images?: GeneratedImage[]) => {
     const newMessage: Message = {
@@ -85,10 +90,8 @@ export default function ChatPage() {
     setInputText('');
     addMessage('USER', userMessage);
     setIsLoading(true);
-    setLastCost(null);
 
     addMessage('SYSTEM', '⚡ Starting pipeline...');
-    addMessage('SYSTEM', '🔍 Brian is generating campaign concepts...');
 
     try {
       const response = await fetch('/api/pipeline', {
@@ -105,32 +108,26 @@ export default function ChatPage() {
         return;
       }
 
+      // Brian
       addMessage('BRIAN', data.brian);
-      addMessage('SYSTEM', '✅ Brian complete! Sending to Lester...');
+      addMessage('SYSTEM', '✅ Concepts generated! Evaluating...');
 
+      // Lester
       addMessage('LESTER', data.lester);
-      addMessage('SYSTEM', '✅ Lester complete! Sending to Alessa...');
+      addMessage('SYSTEM', '✅ Approved! Creating prompts...');
 
+      // Alessa
       addMessage('ALESSA', data.alessa);
       
-      // Show generated images if any
+      // Nix - Images
       if (data.images && data.images.length > 0) {
-        addMessage('SYSTEM', `🍌 Generated ${data.images.length} images with NanoBanana!`);
-        addMessage('IMAGE', `Generated ${data.images.length} images from prompts:`, data.images);
+        addMessage('SYSTEM', `🍌 Nix is generating ${data.images.length} images...`);
+        addMessage('NIX', `Generated ${data.images.length} concept images!`, data.images);
+      } else {
+        addMessage('SYSTEM', '⚠️  No images generated - check Alessa\'s output format');
       }
       
-      if (data.usage) {
-        setLastCost(data.usage.estimatedCost);
-        const costMessage = `✅ Pipeline complete! 🎉\n\n💰 Cost: ${data.usage.estimatedCost}\n📊 Tokens: ${data.usage.totalInputTokens} input, ${data.usage.totalOutputTokens} output\n💾 Cache: ${data.usage.totalCacheRead} tokens read from cache`;
-        
-        if (data.usage.imagesGenerated > 0) {
-          addMessage('SYSTEM', costMessage + `\n🍌 Images: ${data.usage.imagesGenerated} generated`);
-        } else {
-          addMessage('SYSTEM', costMessage);
-        }
-      } else {
-        addMessage('SYSTEM', '✅ Pipeline complete! 🎉');
-      }
+      addMessage('SYSTEM', '✅ Pipeline complete!');
 
     } catch (error: any) {
       console.error('Pipeline error:', error);
@@ -160,6 +157,8 @@ export default function ChatPage() {
         case 'ALESSA':
           endpoint = '/api/agent2';
           break;
+        default:
+          throw new Error('Invalid agent');
       }
 
       const response = await fetch(endpoint, {
@@ -183,7 +182,7 @@ export default function ChatPage() {
   const downloadImage = (base64: string, mimeType: string, index: number) => {
     const link = document.createElement('a');
     link.href = `data:${mimeType};base64,${base64}`;
-    link.download = `zennya-concept-${index}-${Date.now()}.png`;
+    link.download = `zennya-nix-concept-${index}-${Date.now()}.png`;
     link.click();
   };
 
@@ -193,7 +192,7 @@ export default function ChatPage() {
       <div className="w-72 bg-gray-950/50 backdrop-blur-xl border-r border-gray-800/50 flex flex-col">
         <div className="p-4 border-b border-gray-800/50">
           <h1 className="text-xl font-bold">zennya<span className="text-orange-500">.team</span></h1>
-          <p className="text-sm text-gray-400">Zennya Studio</p>
+          <p className="text-sm text-gray-400">AI Creative Studio</p>
         </div>
 
         <div className="p-4 border-b border-gray-800/50">
@@ -206,19 +205,14 @@ export default function ChatPage() {
             }`}
           >
             <span className="font-semibold">
-              {pipelineMode ? '⚡ Pipeline Mode ON' : '🎯 Manual Mode'}
+              {pipelineMode ? '⚡ Pipeline Mode' : '🎯 Manual Mode'}
             </span>
           </button>
           <p className="text-xs text-gray-400 mt-2">
             {pipelineMode 
-              ? '🍌 Auto-generates images with NanoBanana' 
-              : 'Select agent manually'}
+              ? 'Brian → Lester → Alessa → Nix 🍌' 
+              : 'Chat with individual agents'}
           </p>
-          {lastCost && (
-            <div className="mt-2 p-2 bg-green-500/20 border border-green-500/30 rounded text-xs">
-              <span className="text-green-400">Last run: {lastCost}</span>
-            </div>
-          )}
         </div>
 
         {!pipelineMode && (
@@ -262,8 +256,8 @@ export default function ChatPage() {
               <>
                 <div className="text-2xl">⚡</div>
                 <div>
-                  <h2 className="font-semibold">Pipeline Mode</h2>
-                  <p className="text-sm text-gray-400">All Sonnet 4 + Caching + NanoBanana 🍌</p>
+                  <h2 className="font-semibold">Full Pipeline</h2>
+                  <p className="text-sm text-gray-400">4-Agent Creative Workflow</p>
                 </div>
               </>
             ) : (
@@ -289,7 +283,7 @@ export default function ChatPage() {
           {messages.map((msg) => (
             <div key={msg.id}>
               <div className={`flex gap-3 ${msg.sender === 'USER' ? 'flex-row-reverse' : ''}`}>
-                {msg.sender !== 'USER' && msg.sender !== 'SYSTEM' && msg.sender !== 'IMAGE' && (
+                {msg.sender !== 'USER' && msg.sender !== 'SYSTEM' && (
                   <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
                     <Image
                       src={AGENTS[msg.sender as AgentName].avatar}
@@ -303,12 +297,14 @@ export default function ChatPage() {
                   className={`max-w-2xl rounded-lg p-4 ${
                     msg.sender === 'USER'
                       ? 'bg-orange-500/20 border border-orange-500/30'
-                      : msg.sender === 'SYSTEM' || msg.sender === 'IMAGE'
+                      : msg.sender === 'SYSTEM'
                       ? 'bg-gray-700/30 border border-gray-600/30 text-gray-300 text-sm'
+                      : msg.sender === 'NIX'
+                      ? 'bg-yellow-500/20 border border-yellow-500/30'
                       : 'bg-gray-800/50 border border-gray-700/50'
                   }`}
                 >
-                  {msg.sender !== 'USER' && msg.sender !== 'SYSTEM' && msg.sender !== 'IMAGE' && (
+                  {msg.sender !== 'USER' && msg.sender !== 'SYSTEM' && (
                     <p className="text-xs text-gray-400 mb-2">{AGENTS[msg.sender as AgentName].name}</p>
                   )}
                   <p className="whitespace-pre-wrap">{msg.text}</p>
@@ -318,24 +314,24 @@ export default function ChatPage() {
                 </div>
               </div>
               
-              {/* Display generated images */}
+              {/* Display images */}
               {msg.images && msg.images.length > 0 && (
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ml-13">
                   {msg.images.map((img, idx) => (
-                    <div key={idx} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3">
+                    <div key={idx} className="bg-gray-800/50 border border-yellow-500/30 rounded-lg p-3">
                       <div className="relative w-full aspect-[9/16] mb-2 rounded overflow-hidden bg-gray-900">
                         <img
                           src={`data:${img.image.mimeType};base64,${img.image.base64}`}
-                          alt={`Generated concept ${img.index}`}
+                          alt={`Nix generated ${img.index}`}
                           className="w-full h-full object-cover"
                         />
                       </div>
                       <p className="text-xs text-gray-400 mb-2 line-clamp-2">{img.prompt}</p>
                       <button
                         onClick={() => downloadImage(img.image.base64, img.image.mimeType, img.index)}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white text-xs py-2 px-3 rounded transition-all"
+                        className="w-full bg-yellow-500 hover:bg-yellow-600 text-black text-xs py-2 px-3 rounded transition-all font-semibold"
                       >
-                        📥 Download Image {img.index}
+                        🍌 Download #{img.index}
                       </button>
                     </div>
                   ))}
@@ -365,7 +361,7 @@ export default function ChatPage() {
                   pipelineMode ? handlePipelineMode() : handleSendMessage();
                 }
               }}
-              placeholder={pipelineMode ? "Describe your campaign... (Shift+Enter for new line)" : `Message ${AGENTS[activeAgent].name}... (Shift+Enter for new line)`}
+              placeholder={pipelineMode ? "Describe your campaign..." : `Message ${AGENTS[activeAgent].name}...`}
               className="flex-1 bg-gray-800/50 border border-gray-700/50 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500/50 resize-none"
               disabled={isLoading}
               rows={3}
