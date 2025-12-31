@@ -78,60 +78,63 @@ export async function POST(request: NextRequest) {
     console.log('✅ Alessa done');
 
     // ============================================
-    // STEP 4: EXTRACT PROMPTS - EXACT FORMAT MATCH 🍌
+    // STEP 4: EXTRACT - MATCH WITH AND WITHOUT EMOJI 🍌
     // ============================================
-    console.log('🍌 Pierre extracting NanoBanana prompts...');
+    console.log('🍌 Pierre extracting prompts...');
     
     const imagePrompts: string[] = [];
     
-    // Pattern 1: Look for **Positive Prompt:** followed by code block
-    // This matches both the emoji version and the plain version
-    const positivePromptRegex = /\*\*Positive Prompt:\*\*\s*```[^\n]*\n([\s\S]*?)```/gi;
+    // Match BOTH formats:
+    // 1. ✨ **POSITIVE PROMPT:**
+    // 2. **Positive Prompt:**
+    const regex = /(?:✨\s*)?\*\*(?:POSITIVE PROMPT|Positive Prompt):\*\*\s*```[^\n]*\n([\s\S]*?)```/gi;
     let match;
     
-    while ((match = positivePromptRegex.exec(alessaResult)) !== null) {
+    while ((match = regex.exec(alessaResult)) !== null) {
       let rawPrompt = match[1].trim();
       
-      // Clean the prompt - remove technical metadata but keep descriptive text
+      console.log('🔍 Found raw prompt:', rawPrompt.substring(0, 100) + '...');
+      
+      // Clean it up
       const lines = rawPrompt.split('\n');
       const cleanedLines = lines.filter(line => {
         const trimmed = line.trim();
         if (!trimmed) return false;
-        // Remove lines that are just metadata/instructions
         if (trimmed.startsWith('Use uploaded')) return false;
         if (trimmed === 'NO text. NO logo.') return false;
-        // Remove technical parameters like (photorealistic:1.4)
-        if (trimmed.match(/^\([^)]+:\d+\.\d+\),?$/)) return false;
+        if (trimmed.includes('NO text.')) return false;
+        if (trimmed.includes('NO logo.')) return false;
+        // Skip technical params
+        if (trimmed.match(/^\([^)]+:\d+/)) return false;
         return true;
       });
       
       let cleanPrompt = cleanedLines.join(' ').replace(/\s+/g, ' ').trim();
       
-      // Remove trailing technical parameters
-      cleanPrompt = cleanPrompt.replace(/,?\s*\([^)]+:\d+\.\d+\).*$/, '');
+      // Remove trailing params
+      cleanPrompt = cleanPrompt.replace(/,?\s*\([^)]+:\d+[^)]*\).*$/g, '');
+      cleanPrompt = cleanPrompt.replace(/\s*,\s*$/, '');
       
       if (cleanPrompt.length > 50) {
         imagePrompts.push(cleanPrompt);
-        console.log(`✅ Extracted prompt ${imagePrompts.length}:`);
-        console.log(`   ${cleanPrompt.substring(0, 200)}...`);
+        console.log(`✅ Clean prompt ${imagePrompts.length}: ${cleanPrompt.substring(0, 150)}...`);
       }
     }
     
-    console.log(`🍌 Total prompts found: ${imagePrompts.length}`);
+    console.log(`🍌 Total prompts extracted: ${imagePrompts.length}`);
     
     // ============================================
-    // GENERATE IMAGES WITH PIERRE 🍌
+    // GENERATE IMAGES 🍌
     // ============================================
     const generatedImages = [];
     
     if (imagePrompts.length > 0) {
-      // Take first 3 unique prompts
       const uniquePrompts = [...new Set(imagePrompts)].slice(0, 3);
       
       for (let i = 0; i < uniquePrompts.length; i++) {
         const promptText = uniquePrompts[i];
         
-        console.log(`🍌 Pierre generating image ${i + 1}/${uniquePrompts.length}...`);
+        console.log(`🍌 Pierre generating image ${i + 1}...`);
         
         try {
           const imageResponse = await fetch(`${request.nextUrl.origin}/api/generate-image`, {
@@ -151,7 +154,7 @@ export async function POST(request: NextRequest) {
               image: imageData.image,
               index: i + 1
             });
-            console.log(`✅ Image ${i + 1} generated successfully!`);
+            console.log(`✅ Image ${i + 1} generated!`);
           } else {
             console.error(`❌ Image ${i + 1} failed:`, imageData.error);
           }
@@ -160,10 +163,10 @@ export async function POST(request: NextRequest) {
         }
       }
     } else {
-      console.log('⚠️  No Positive Prompt sections found');
+      console.log('❌ NO PROMPTS FOUND');
     }
 
-    console.log(`🎉 Pipeline complete! Pierre generated ${generatedImages.length} images`);
+    console.log(`🎉 Pipeline done! ${generatedImages.length} images generated`);
 
     return NextResponse.json({
       success: true,
@@ -175,7 +178,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ PIPELINE ERROR:', error);
+    console.error('❌ ERROR:', error);
     return NextResponse.json({
       success: false,
       error: error.message,
