@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
     console.log('🚀 Pipeline started');
 
-    // STEP 1: BRIAN (Concept Generation)
+    // STEP 1: BRIAN (Concept Generation) - SONNET 4
     console.log('🤖 Brian (Sonnet 4)...');
     const agent1Prompt = readFileSync(join(process.cwd(), 'prompts', 'agent1_system.md'), 'utf-8');
     
@@ -35,12 +35,12 @@ export async function POST(request: NextRequest) {
     const brianResult = brianResponse.content[0].type === 'text' ? brianResponse.content[0].text : '';
     console.log('✅ Brian done');
 
-    // STEP 2: LESTER (Evaluation)
-    console.log('🤖 Lester (Haiku 4.5)...');
+    // STEP 2: LESTER (Evaluation) - SONNET 4
+    console.log('🤖 Lester (Sonnet 4)...');
     const agent3Prompt = readFileSync(join(process.cwd(), 'prompts', 'agent3_system.md'), 'utf-8');
     
     const lesterResponse = await client.messages.create({
-      model: 'claude-haiku-4-20250514',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
       temperature: 0.3,
       system: [
@@ -56,12 +56,12 @@ export async function POST(request: NextRequest) {
     const lesterResult = lesterResponse.content[0].type === 'text' ? lesterResponse.content[0].text : '';
     console.log('✅ Lester done');
 
-    // STEP 3: ALESSA (Prompt Engineering)
-    console.log('🤖 Alessa (Haiku 4.5)...');
+    // STEP 3: ALESSA (Prompt Engineering) - SONNET 4
+    console.log('🤖 Alessa (Sonnet 4)...');
     const agent2Prompt = readFileSync(join(process.cwd(), 'prompts', 'agent2_system.md'), 'utf-8');
     
     const alessaResponse = await client.messages.create({
-      model: 'claude-haiku-4-20250514',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 2500,
       temperature: 0.5,
       system: [
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
       console.log('⚠️  No image prompts found in Alessa output');
     }
 
-    // Calculate costs
+    // Calculate costs - ALL SONNET 4 NOW
     const totalInputTokens = 
       (brianResponse.usage?.input_tokens || 0) + 
       (lesterResponse.usage?.input_tokens || 0) + 
@@ -148,21 +148,21 @@ export async function POST(request: NextRequest) {
       (lesterResponse.usage?.cache_read_input_tokens || 0) + 
       (alessaResponse.usage?.cache_read_input_tokens || 0);
 
-    // Cost calculation
+    // Cost calculation - ALL SONNET 4 ($3/M input, $15/M output)
     const brianInputCost = ((brianResponse.usage?.input_tokens || 0) / 1000000) * 3;
     const brianOutputCost = ((brianResponse.usage?.output_tokens || 0) / 1000000) * 15;
     const brianCacheCost = ((brianResponse.usage?.cache_creation_input_tokens || 0) / 1000000) * 3 * 1.25;
     const brianCacheReadCost = ((brianResponse.usage?.cache_read_input_tokens || 0) / 1000000) * 3 * 0.1;
     
-    const lesterInputCost = ((lesterResponse.usage?.input_tokens || 0) / 1000000) * 0.8;
-    const lesterOutputCost = ((lesterResponse.usage?.output_tokens || 0) / 1000000) * 4;
-    const lesterCacheCost = ((lesterResponse.usage?.cache_creation_input_tokens || 0) / 1000000) * 0.8 * 1.25;
-    const lesterCacheReadCost = ((lesterResponse.usage?.cache_read_input_tokens || 0) / 1000000) * 0.8 * 0.1;
+    const lesterInputCost = ((lesterResponse.usage?.input_tokens || 0) / 1000000) * 3;
+    const lesterOutputCost = ((lesterResponse.usage?.output_tokens || 0) / 1000000) * 15;
+    const lesterCacheCost = ((lesterResponse.usage?.cache_creation_input_tokens || 0) / 1000000) * 3 * 1.25;
+    const lesterCacheReadCost = ((lesterResponse.usage?.cache_read_input_tokens || 0) / 1000000) * 3 * 0.1;
     
-    const alessaInputCost = ((alessaResponse.usage?.input_tokens || 0) / 1000000) * 0.8;
-    const alessaOutputCost = ((alessaResponse.usage?.output_tokens || 0) / 1000000) * 4;
-    const alessaCacheCost = ((alessaResponse.usage?.cache_creation_input_tokens || 0) / 1000000) * 0.8 * 1.25;
-    const alessaCacheReadCost = ((alessaResponse.usage?.cache_read_input_tokens || 0) / 1000000) * 0.8 * 0.1;
+    const alessaInputCost = ((alessaResponse.usage?.input_tokens || 0) / 1000000) * 3;
+    const alessaOutputCost = ((alessaResponse.usage?.output_tokens || 0) / 1000000) * 15;
+    const alessaCacheCost = ((alessaResponse.usage?.cache_creation_input_tokens || 0) / 1000000) * 3 * 1.25;
+    const alessaCacheReadCost = ((alessaResponse.usage?.cache_read_input_tokens || 0) / 1000000) * 3 * 0.1;
 
     const estimatedCost = 
       brianInputCost + brianOutputCost + brianCacheCost + brianCacheReadCost +
