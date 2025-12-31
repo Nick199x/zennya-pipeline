@@ -8,86 +8,191 @@ const client = new Anthropic({
 });
 
 export async function POST(request: NextRequest) {
-  const encoder = new TextEncoder();
-  const stream = new TransformStream();
-  const writer = stream.writable.getWriter();
+  try {
+    const body = await request.json();
+    const { prompt } = body;
 
-  // Start processing in background
-  (async () => {
-    try {
-      const body = await request.json();
-      const { prompt } = body;
+    console.log('🚀 Pipeline started');
 
-      // Helper to send updates to frontend
-      const sendUpdate = async (agent: string, message: string) => {
-        await writer.write(
-          encoder.encode(`data: ${JSON.stringify({ agent, message })}\n\n`)
-        );
-      };
+    // STEP 1: BRIAN (Concept Generation)
+    console.log('🤖 Brian (Sonnet 4)...');
+    const agent1Prompt = readFileSync(join(process.cwd(), 'prompts', 'agent1_system.md'), 'utf-8');
+    
+    const brianResponse = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 3000,
+      temperature: 0.7,
+      system: [
+        {
+          type: "text",
+          text: agent1Prompt,
+          cache_control: { type: "ephemeral" }
+        }
+      ],
+      messages: [{ role: 'user', content: prompt }],
+    });
+    
+    const brianResult = brianResponse.content[0].type === 'text' ? brianResponse.content[0].text : '';
+    console.log('✅ Brian done');
 
-      // STEP 1: BRIAN - Campaign Strategist
-      await sendUpdate('BRIAN', '🔍 Brian is generating campaign concepts...');
+    // STEP 2: LESTER (Evaluation)
+    console.log('🤖 Lester (Haiku 4.5)...');
+    const agent3Prompt = readFileSync(join(process.cwd(), 'prompts', 'agent3_system.md'), 'utf-8');
+    
+    const lesterResponse = await client.messages.create({
+      model: 'claude-haiku-4-20250514',
+      max_tokens: 2000,
+      temperature: 0.3,
+      system: [
+        {
+          type: "text",
+          text: agent3Prompt,
+          cache_control: { type: "ephemeral" }
+        }
+      ],
+      messages: [{ role: 'user', content: `Evaluate these concepts:\n\n${brianResult}` }],
+    });
+    
+    const lesterResult = lesterResponse.content[0].type === 'text' ? lesterResponse.content[0].text : '';
+    console.log('✅ Lester done');
+
+    // STEP 3: ALESSA (Prompt Engineering)
+    console.log('🤖 Alessa (Haiku 4.5)...');
+    const agent2Prompt = readFileSync(join(process.cwd(), 'prompts', 'agent2_system.md'), 'utf-8');
+    
+    const alessaResponse = await client.messages.create({
+      model: 'claude-haiku-4-20250514',
+      max_tokens: 2500,
+      temperature: 0.5,
+      system: [
+        {
+          type: "text",
+          text: agent2Prompt,
+          cache_control: { type: "ephemeral" }
+        }
+      ],
+      messages: [{ role: 'user', content: `Generate prompts for these approved concepts:\n\n${lesterResult}` }],
+    });
+    
+    const alessaResult = alessaResponse.content[0].type === 'text' ? alessaResponse.content[0].text : '';
+    console.log('✅ Alessa done');
+
+    // STEP 4: EXTRACT IMAGE PROMPTS AND GENERATE WITH NANOBANANA 🍌
+    console.log('🍌 Extracting image prompts for NanoBanana...');
+    
+    // Parse Alessa's output to find image prompts
+    const imagePromptMatches = alessaResult.match(/(?:Image Prompt|Visual Description|Midjourney Prompt):\s*(.+?)(?=\n\n|Video Prompt|Caption|$)/gis);
+    
+    const generatedImages = [];
+    
+    if (imagePromptMatches && imagePromptMatches.length > 0) {
+      console.log(`Found ${imagePromptMatches.length} image prompts, generating with NanoBanana...`);
       
-      const agent1Prompt = readFileSync(join(process.cwd(), 'prompts', 'agent1_system.md'), 'utf-8');
-      const brianResponse = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        temperature: 0.7,
-        system: agent1Prompt,
-        messages: [{ role: 'user', content: prompt }],
-      });
+      // Generate images for first 3 prompts (to avoid too many API calls)
+      const promptsToGenerate = imagePromptMatches.slice(0, 3);
       
-      const brianResult = brianResponse.content[0].type === 'text' ? brianResponse.content[0].text : '';
-      await sendUpdate('BRIAN', brianResult);
-
-      // STEP 2: LESTER - Brand Safety
-      await sendUpdate('LESTER', '🔍 Lester is evaluating concepts...');
-      
-      const agent3Prompt = readFileSync(join(process.cwd(), 'prompts', 'agent3_system.md'), 'utf-8');
-      const lesterResponse = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        temperature: 0.3,
-        system: agent3Prompt,
-        messages: [{ role: 'user', content: `Evaluate these concepts:\n\n${brianResult}` }],
-      });
-      
-      const lesterResult = lesterResponse.content[0].type === 'text' ? lesterResponse.content[0].text : '';
-      await sendUpdate('LESTER', lesterResult);
-
-      // STEP 3: ALESSA - Prompt Engineer
-      await sendUpdate('ALESSA', '🔍 Alessa is creating generation prompts...');
-      
-      const agent2Prompt = readFileSync(join(process.cwd(), 'prompts', 'agent2_system.md'), 'utf-8');
-      const alessaResponse = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        temperature: 0.5,
-        system: agent2Prompt,
-        messages: [{ role: 'user', content: `Generate prompts for these approved concepts:\n\n${lesterResult}` }],
-      });
-      
-      const alessaResult = alessaResponse.content[0].type === 'text' ? alessaResponse.content[0].text : '';
-      await sendUpdate('ALESSA', alessaResult);
-
-      // Done!
-      await sendUpdate('SYSTEM', 'COMPLETE');
-      await writer.close();
-
-    } catch (error: any) {
-      console.error('❌ PIPELINE ERROR:', error);
-      await writer.write(
-        encoder.encode(`data: ${JSON.stringify({ agent: 'ERROR', message: error.message })}\n\n`)
-      );
-      await writer.close();
+      for (let i = 0; i < promptsToGenerate.length; i++) {
+        const match = promptsToGenerate[i];
+        const promptText = match.replace(/(?:Image Prompt|Visual Description|Midjourney Prompt):\s*/i, '').trim();
+        
+        console.log(`🍌 Generating image ${i + 1}/${promptsToGenerate.length}...`);
+        
+        try {
+          const imageResponse = await fetch(`${request.nextUrl.origin}/api/generate-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              prompt: promptText,
+              model: 'gemini-2.5-flash-image' // Fast NanoBanana model
+            }),
+          });
+          
+          const imageData = await imageResponse.json();
+          
+          if (imageData.success) {
+            generatedImages.push({
+              prompt: promptText,
+              image: imageData.image,
+              index: i + 1
+            });
+            console.log(`✅ Image ${i + 1} generated by NanoBanana`);
+          } else {
+            console.error(`❌ Image ${i + 1} failed:`, imageData.error);
+          }
+        } catch (error) {
+          console.error(`❌ Image ${i + 1} generation error:`, error);
+        }
+      }
+    } else {
+      console.log('⚠️  No image prompts found in Alessa output');
     }
-  })();
 
-  return new Response(stream.readable, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    },
-  });
+    // Calculate costs
+    const totalInputTokens = 
+      (brianResponse.usage?.input_tokens || 0) + 
+      (lesterResponse.usage?.input_tokens || 0) + 
+      (alessaResponse.usage?.input_tokens || 0);
+    
+    const totalOutputTokens = 
+      (brianResponse.usage?.output_tokens || 0) + 
+      (lesterResponse.usage?.output_tokens || 0) + 
+      (alessaResponse.usage?.output_tokens || 0);
+
+    const totalCacheCreation = 
+      (brianResponse.usage?.cache_creation_input_tokens || 0) + 
+      (lesterResponse.usage?.cache_creation_input_tokens || 0) + 
+      (alessaResponse.usage?.cache_creation_input_tokens || 0);
+
+    const totalCacheRead = 
+      (brianResponse.usage?.cache_read_input_tokens || 0) + 
+      (lesterResponse.usage?.cache_read_input_tokens || 0) + 
+      (alessaResponse.usage?.cache_read_input_tokens || 0);
+
+    // Cost calculation
+    const brianInputCost = ((brianResponse.usage?.input_tokens || 0) / 1000000) * 3;
+    const brianOutputCost = ((brianResponse.usage?.output_tokens || 0) / 1000000) * 15;
+    const brianCacheCost = ((brianResponse.usage?.cache_creation_input_tokens || 0) / 1000000) * 3 * 1.25;
+    const brianCacheReadCost = ((brianResponse.usage?.cache_read_input_tokens || 0) / 1000000) * 3 * 0.1;
+    
+    const lesterInputCost = ((lesterResponse.usage?.input_tokens || 0) / 1000000) * 0.8;
+    const lesterOutputCost = ((lesterResponse.usage?.output_tokens || 0) / 1000000) * 4;
+    const lesterCacheCost = ((lesterResponse.usage?.cache_creation_input_tokens || 0) / 1000000) * 0.8 * 1.25;
+    const lesterCacheReadCost = ((lesterResponse.usage?.cache_read_input_tokens || 0) / 1000000) * 0.8 * 0.1;
+    
+    const alessaInputCost = ((alessaResponse.usage?.input_tokens || 0) / 1000000) * 0.8;
+    const alessaOutputCost = ((alessaResponse.usage?.output_tokens || 0) / 1000000) * 4;
+    const alessaCacheCost = ((alessaResponse.usage?.cache_creation_input_tokens || 0) / 1000000) * 0.8 * 1.25;
+    const alessaCacheReadCost = ((alessaResponse.usage?.cache_read_input_tokens || 0) / 1000000) * 0.8 * 0.1;
+
+    const estimatedCost = 
+      brianInputCost + brianOutputCost + brianCacheCost + brianCacheReadCost +
+      lesterInputCost + lesterOutputCost + lesterCacheCost + lesterCacheReadCost +
+      alessaInputCost + alessaOutputCost + alessaCacheCost + alessaCacheReadCost;
+
+    console.log(`💰 Total cost: $${estimatedCost.toFixed(4)}`);
+    console.log(`🍌 NanoBanana images: ${generatedImages.length}`);
+
+    return NextResponse.json({
+      success: true,
+      brian: brianResult,
+      lester: lesterResult,
+      alessa: alessaResult,
+      images: generatedImages,
+      usage: {
+        totalInputTokens,
+        totalOutputTokens,
+        totalCacheCreation,
+        totalCacheRead,
+        estimatedCost: `$${estimatedCost.toFixed(4)}`,
+        imagesGenerated: generatedImages.length
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ PIPELINE ERROR:', error);
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+    }, { status: 500 });
+  }
 }
