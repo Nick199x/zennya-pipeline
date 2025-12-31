@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Image from 'next/image';
 
-type AgentName = 'BRIAN' | 'LESTER' | 'ALESSA' | 'NIX';
-type SenderType = AgentName | 'USER' | 'SYSTEM';
+type AgentName = 'BRIAN' | 'LESTER' | 'ALESSA';
+type SenderType = AgentName | 'USER' | 'SYSTEM' | 'PIERRE';
 
 interface GeneratedImage {
   prompt: string;
@@ -48,12 +48,6 @@ const AGENTS: Record<AgentName, AgentConfig> = {
     avatar: '/images/team/alessa-avatar.jpg',
     status: 'Prompt Engineer',
     color: 'bg-purple-600',
-  },
-  NIX: {
-    name: 'Nix',
-    avatar: '/images/team/nix-avatar.jpg',
-    status: 'Image Generator',
-    color: 'bg-yellow-600',
   },
 };
 
@@ -119,12 +113,12 @@ export default function ChatPage() {
       // Alessa
       addMessage('ALESSA', data.alessa);
       
-      // Nix - Images
+      // Pierre (NanoBanana) - Images
       if (data.images && data.images.length > 0) {
-        addMessage('SYSTEM', `🍌 Nix is generating ${data.images.length} images...`);
-        addMessage('NIX', `Generated ${data.images.length} concept images!`, data.images);
+        addMessage('SYSTEM', `🍌 Pierre (NanoBanana Pro) generated ${data.images.length} images!`);
+        addMessage('PIERRE', `Generated ${data.images.length} concept visuals`, data.images);
       } else {
-        addMessage('SYSTEM', '⚠️  No images generated - check Alessa\'s output format');
+        addMessage('SYSTEM', '⚠️  No images generated - Alessa may not have created NanoBanana prompts');
       }
       
       addMessage('SYSTEM', '✅ Pipeline complete!');
@@ -182,7 +176,7 @@ export default function ChatPage() {
   const downloadImage = (base64: string, mimeType: string, index: number) => {
     const link = document.createElement('a');
     link.href = `data:${mimeType};base64,${base64}`;
-    link.download = `zennya-nix-concept-${index}-${Date.now()}.png`;
+    link.download = `zennya-pierre-${index}-${Date.now()}.png`;
     link.click();
   };
 
@@ -210,7 +204,7 @@ export default function ChatPage() {
           </button>
           <p className="text-xs text-gray-400 mt-2">
             {pipelineMode 
-              ? 'Brian → Lester → Alessa → Nix 🍌' 
+              ? 'Brian → Lester → Alessa → Pierre 🍌' 
               : 'Chat with individual agents'}
           </p>
         </div>
@@ -257,7 +251,7 @@ export default function ChatPage() {
                 <div className="text-2xl">⚡</div>
                 <div>
                   <h2 className="font-semibold">Full Pipeline</h2>
-                  <p className="text-sm text-gray-400">4-Agent Creative Workflow</p>
+                  <p className="text-sm text-gray-400">Auto-generates images with Pierre 🍌</p>
                 </div>
               </>
             ) : (
@@ -283,7 +277,7 @@ export default function ChatPage() {
           {messages.map((msg) => (
             <div key={msg.id}>
               <div className={`flex gap-3 ${msg.sender === 'USER' ? 'flex-row-reverse' : ''}`}>
-                {msg.sender !== 'USER' && msg.sender !== 'SYSTEM' && (
+                {msg.sender !== 'USER' && msg.sender !== 'SYSTEM' && msg.sender !== 'PIERRE' && (
                   <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
                     <Image
                       src={AGENTS[msg.sender as AgentName].avatar}
@@ -299,13 +293,16 @@ export default function ChatPage() {
                       ? 'bg-orange-500/20 border border-orange-500/30'
                       : msg.sender === 'SYSTEM'
                       ? 'bg-gray-700/30 border border-gray-600/30 text-gray-300 text-sm'
-                      : msg.sender === 'NIX'
+                      : msg.sender === 'PIERRE'
                       ? 'bg-yellow-500/20 border border-yellow-500/30'
                       : 'bg-gray-800/50 border border-gray-700/50'
                   }`}
                 >
-                  {msg.sender !== 'USER' && msg.sender !== 'SYSTEM' && (
+                  {msg.sender !== 'USER' && msg.sender !== 'SYSTEM' && msg.sender !== 'PIERRE' && (
                     <p className="text-xs text-gray-400 mb-2">{AGENTS[msg.sender as AgentName].name}</p>
+                  )}
+                  {msg.sender === 'PIERRE' && (
+                    <p className="text-xs text-yellow-400 mb-2">🍌 Pierre (NanoBanana Pro)</p>
                   )}
                   <p className="whitespace-pre-wrap">{msg.text}</p>
                   <p className="text-xs text-gray-500 mt-2">
@@ -322,11 +319,11 @@ export default function ChatPage() {
                       <div className="relative w-full aspect-[9/16] mb-2 rounded overflow-hidden bg-gray-900">
                         <img
                           src={`data:${img.image.mimeType};base64,${img.image.base64}`}
-                          alt={`Nix generated ${img.index}`}
+                          alt={`Pierre generated ${img.index}`}
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <p className="text-xs text-gray-400 mb-2 line-clamp-2">{img.prompt}</p>
+                      <p className="text-xs text-gray-400 mb-2 line-clamp-2">{img.prompt.substring(0, 100)}...</p>
                       <button
                         onClick={() => downloadImage(img.image.base64, img.image.mimeType, img.index)}
                         className="w-full bg-yellow-500 hover:bg-yellow-600 text-black text-xs py-2 px-3 rounded transition-all font-semibold"

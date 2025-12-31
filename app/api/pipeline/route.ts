@@ -77,45 +77,35 @@ export async function POST(request: NextRequest) {
     const alessaResult = alessaResponse.content[0].type === 'text' ? alessaResponse.content[0].text : '';
     console.log('✅ Alessa done');
 
-    // STEP 4: NIX (NANOBANANA) - EXTRACT AND GENERATE IMAGES 🍌
-    console.log('🍌 Nix extracting image prompts...');
+    // STEP 4: EXTRACT NANOBANANA PROMPTS FROM CODE BLOCKS 🍌
+    console.log('🍌 Extracting NanoBanana prompts...');
     
-    // More flexible regex to find image prompts
-    const lines = alessaResult.split('\n');
     const imagePrompts: string[] = [];
     
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      // Look for lines that contain "Image Prompt", "Visual", "Midjourney", etc.
-      if (line.match(/(?:image prompt|visual prompt|midjourney prompt|image description|visual description):/i)) {
-        // Get the next line or same line after colon
-        const colonIndex = line.indexOf(':');
-        if (colonIndex > -1 && line.length > colonIndex + 1) {
-          const promptText = line.substring(colonIndex + 1).trim();
-          if (promptText.length > 10) {
-            imagePrompts.push(promptText);
-          }
-        } else if (i + 1 < lines.length) {
-          const nextLine = lines[i + 1].trim();
-          if (nextLine.length > 10) {
-            imagePrompts.push(nextLine);
-          }
-        }
+    // Find all POSITIVE PROMPT code blocks
+    const positivePromptRegex = /\*\*✨ POSITIVE PROMPT:\*\*\s*```(?:[\w]*)\s*([\s\S]*?)```/gi;
+    let match;
+    
+    while ((match = positivePromptRegex.exec(alessaResult)) !== null) {
+      const promptText = match[1].trim();
+      if (promptText.length > 30) {
+        imagePrompts.push(promptText);
+        console.log(`✓ Found NanoBanana prompt ${imagePrompts.length}: ${promptText.substring(0, 80)}...`);
       }
     }
     
-    console.log(`🍌 Found ${imagePrompts.length} image prompts`);
+    console.log(`🍌 Total NanoBanana prompts found: ${imagePrompts.length}`);
     
     const generatedImages = [];
     
     if (imagePrompts.length > 0) {
-      // Generate first 3 images max
+      // Generate up to 3 images
       const promptsToGenerate = imagePrompts.slice(0, 3);
       
       for (let i = 0; i < promptsToGenerate.length; i++) {
         const promptText = promptsToGenerate[i];
         
-        console.log(`🍌 Nix generating image ${i + 1}/${promptsToGenerate.length}...`);
+        console.log(`🍌 Pierre generating image ${i + 1}/${promptsToGenerate.length}...`);
         
         try {
           const imageResponse = await fetch(`${request.nextUrl.origin}/api/generate-image`, {
@@ -123,7 +113,7 @@ export async function POST(request: NextRequest) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               prompt: promptText,
-              model: 'gemini-2.5-flash-image'
+              model: 'gemini-2.5-flash-image' // Can switch to gemini-3-pro-image-preview for Pro
             }),
           });
           
@@ -135,7 +125,7 @@ export async function POST(request: NextRequest) {
               image: imageData.image,
               index: i + 1
             });
-            console.log(`✅ Image ${i + 1} generated`);
+            console.log(`✅ Pierre generated image ${i + 1}`);
           } else {
             console.error(`❌ Image ${i + 1} failed:`, imageData.error);
           }
@@ -144,10 +134,10 @@ export async function POST(request: NextRequest) {
         }
       }
     } else {
-      console.log('⚠️  No image prompts found - Nix standing by');
+      console.log('⚠️  No NanoBanana prompts found in Alessa output');
     }
 
-    console.log(`✅ Pipeline complete! Generated ${generatedImages.length} images`);
+    console.log(`✅ Pipeline complete! Pierre generated ${generatedImages.length} images`);
 
     return NextResponse.json({
       success: true,
