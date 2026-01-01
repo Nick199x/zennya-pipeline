@@ -9,11 +9,17 @@ interface Message {
   images?: Array<{ base64: string; mimeType: string; prompt: string; index: number }>;
 }
 
+interface ProductPhoto {
+  base64: string;
+  mimeType: string;
+  name: string;
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [productPhotos, setProductPhotos] = useState<Array<{ base64: string; mimeType: string; name: string }>>([]);
+  const [productPhotos, setProductPhotos] = useState<ProductPhoto[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -26,7 +32,7 @@ export default function ChatPage() {
   }, [messages]);
 
   // COMPRESS IMAGE TO AVOID 4.5MB VERCEL LIMIT
-  const compressImage = (file: File): Promise<{ base64: string; mimeType: string; name: string }> => {
+  const compressImage = (file: File): Promise<ProductPhoto> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       
@@ -84,7 +90,7 @@ export default function ChatPage() {
     const files = e.target.files;
     if (!files) return;
 
-    const newPhotos = [];
+    const newPhotos: ProductPhoto[] = [];
     
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
