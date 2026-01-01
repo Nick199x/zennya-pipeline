@@ -39,7 +39,6 @@ export default function ChatPage() {
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-          // Create canvas
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           
@@ -48,7 +47,6 @@ export default function ChatPage() {
             return;
           }
           
-          // Calculate new dimensions (max 800px width, maintain aspect ratio)
           let width = img.width;
           let height = img.height;
           const maxWidth = 800;
@@ -60,11 +58,8 @@ export default function ChatPage() {
           
           canvas.width = width;
           canvas.height = height;
-          
-          // Draw and compress
           ctx.drawImage(img, 0, 0, width, height);
           
-          // Convert to base64 with quality compression (0.7 = 70% quality)
           const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
           const base64Data = compressedBase64.split(',')[1];
           
@@ -96,7 +91,6 @@ export default function ChatPage() {
       const file = files[i];
       
       try {
-        // Compress before adding
         const compressed = await compressImage(file);
         newPhotos.push(compressed);
         console.log(`✅ Added ${file.name} (compressed)`);
@@ -107,7 +101,6 @@ export default function ChatPage() {
     
     setProductPhotos(prev => [...prev, ...newPhotos]);
     
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -149,7 +142,7 @@ export default function ChatPage() {
         if (data.images && data.images.length > 0) {
           setMessages(prev => [
             ...prev,
-            { role: 'pierre', content: `Generated ${data.images.length} images using your product photos!`, images: data.images }
+            { role: 'pierre', content: `Generated ${data.images.length} images!`, images: data.images }
           ]);
         }
 
@@ -172,166 +165,151 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 p-4">
-        <h2 className="text-lg font-semibold mb-4">Zennya Pipeline</h2>
-        
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">🧠</div>
-            <span>Brian (Ideation)</span>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
+            <h1 className="text-2xl font-bold">Zennya AI Pipeline</h1>
+            <p className="text-purple-100 mt-1">Brian → Lester → Alessa → Pierre</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">🛡️</div>
-            <span>Lester (Safety)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">✨</div>
-            <span>Alessa (Prompts)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">🍌</div>
-            <span>Pierre (Images)</span>
-          </div>
-        </div>
 
-        {/* Product Photos Section */}
-        <div className="mt-8">
-          <h3 className="text-sm font-semibold mb-2">Product Photos</h3>
-          <p className="text-xs text-gray-500 mb-3">Upload Eclipse/Halo photos so Pierre doesn't hallucinate</p>
-          
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept="image/*"
-            multiple
-            className="hidden"
-          />
-          
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            📸 Upload Photos
-          </button>
-          
-          {/* Display uploaded photos */}
-          <div className="mt-3 space-y-2">
-            {productPhotos.map((photo, i) => (
-              <div key={i} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded">
-                <span className="truncate">{photo.name}</span>
-                <button
-                  onClick={() => removePhoto(i)}
-                  className="text-red-500 hover:text-red-700"
+          {/* Messages */}
+          <div className="h-[500px] overflow-y-auto p-6 space-y-4">
+            {messages.map((message, i) => (
+              <div
+                key={i}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-2xl p-4 ${
+                    message.role === 'user'
+                      ? 'bg-purple-600 text-white'
+                      : message.role === 'brian'
+                      ? 'bg-purple-50 border border-purple-200'
+                      : message.role === 'lester'
+                      ? 'bg-blue-50 border border-blue-200'
+                      : message.role === 'alessa'
+                      ? 'bg-green-50 border border-green-200'
+                      : message.role === 'pierre'
+                      ? 'bg-yellow-50 border border-yellow-200'
+                      : 'bg-gray-100'
+                  }`}
                 >
-                  ✕
-                </button>
+                  <div className="text-sm font-semibold mb-2">
+                    {message.role === 'user' ? 'You' : 
+                     message.role === 'brian' ? '🧠 Brian' :
+                     message.role === 'lester' ? '🛡️ Lester' :
+                     message.role === 'alessa' ? '✨ Alessa' :
+                     message.role === 'pierre' ? '🍌 Pierre' :
+                     'System'}
+                  </div>
+                  <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+                  
+                  {message.images && message.images.length > 0 && (
+                    <div className="mt-4 space-y-4">
+                      {message.images.map((img, idx) => (
+                        <div key={idx} className="border rounded-lg overflow-hidden bg-white">
+                          <img
+                            src={`data:${img.mimeType};base64,${img.base64}`}
+                            alt={`Generated ${idx + 1}`}
+                            className="w-full"
+                          />
+                          <div className="p-3 flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Image {img.index}</span>
+                            <button
+                              onClick={() => downloadImage(img.base64, img.mimeType, img.index)}
+                              className="flex items-center gap-1 px-3 py-1 bg-yellow-500 text-white text-xs rounded hover:bg-yellow-600"
+                            >
+                              <Download size={14} />
+                              Download
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
-          </div>
-          
-          {productPhotos.length > 0 && (
-            <p className="text-xs text-green-600 mt-2">
-              ✅ {productPhotos.length} photo{productPhotos.length > 1 ? 's' : ''} ready (compressed)
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.map((message, i) => (
-            <div
-              key={i}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-3xl rounded-lg p-4 ${
-                  message.role === 'user'
-                    ? 'bg-purple-600 text-white'
-                    : message.role === 'brian'
-                    ? 'bg-purple-50 border border-purple-200'
-                    : message.role === 'lester'
-                    ? 'bg-blue-50 border border-blue-200'
-                    : message.role === 'alessa'
-                    ? 'bg-green-50 border border-green-200'
-                    : message.role === 'pierre'
-                    ? 'bg-yellow-50 border border-yellow-200'
-                    : 'bg-gray-100'
-                }`}
-              >
-                <div className="text-sm font-semibold mb-2">
-                  {message.role === 'user' ? 'You' : 
-                   message.role === 'brian' ? '🧠 Brian' :
-                   message.role === 'lester' ? '🛡️ Lester' :
-                   message.role === 'alessa' ? '✨ Alessa' :
-                   message.role === 'pierre' ? '🍌 Pierre' :
-                   'System'}
+            
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-gray-100 rounded-2xl p-4 flex items-center gap-2">
+                  <Loader2 className="animate-spin" size={16} />
+                  <span className="text-sm">Pipeline running...</span>
                 </div>
-                <div className="whitespace-pre-wrap text-sm">{message.content}</div>
-                
-                {/* Display images */}
-                {message.images && message.images.length > 0 && (
-                  <div className="mt-4 space-y-4">
-                    {message.images.map((img, idx) => (
-                      <div key={idx} className="border rounded-lg overflow-hidden bg-white">
-                        <img
-                          src={`data:${img.mimeType};base64,${img.base64}`}
-                          alt={`Generated ${idx + 1}`}
-                          className="w-full"
-                        />
-                        <div className="p-3 flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Image {img.index}</span>
-                          <button
-                            onClick={() => downloadImage(img.base64, img.mimeType, img.index)}
-                            className="flex items-center gap-1 px-3 py-1 bg-yellow-500 text-white text-xs rounded hover:bg-yellow-600"
-                          >
-                            <Download size={14} />
-                            Download
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-            </div>
-          ))}
-          
-          {loading && (
-            <div className="flex justify-start">
-              <div className="bg-gray-100 rounded-lg p-4 flex items-center gap-2">
-                <Loader2 className="animate-spin" size={16} />
-                <span className="text-sm">Pipeline running...</span>
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Product Photos Upload Section */}
+          {productPhotos.length > 0 && (
+            <div className="px-6 py-3 bg-purple-50 border-t border-purple-100">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold text-purple-700">Photos:</span>
+                {productPhotos.map((photo, i) => (
+                  <div key={i} className="flex items-center gap-1 bg-white px-2 py-1 rounded text-xs border border-purple-200">
+                    <span className="max-w-[100px] truncate">{photo.name}</span>
+                    <button
+                      onClick={() => removePhoto(i)}
+                      className="text-red-500 hover:text-red-700 ml-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}
-          
-          <div ref={messagesEndRef} />
-        </div>
 
-        {/* Input */}
-        <div className="border-t border-gray-200 p-4 bg-white">
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Describe your campaign..."
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              disabled={loading}
-            />
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
-            </button>
-          </form>
+          {/* Input */}
+          <div className="border-t border-gray-200 p-6 bg-gray-50">
+            <form onSubmit={handleSubmit} className="flex gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="image/*"
+                multiple
+                className="hidden"
+              />
+              
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-4 py-3 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+                title="Upload product photos"
+              >
+                📸
+              </button>
+              
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Describe your campaign..."
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={loading}
+              />
+              
+              <button
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+              </button>
+            </form>
+            
+            {productPhotos.length > 0 && (
+              <p className="text-xs text-green-600 mt-2">
+                ✅ {productPhotos.length} photo{productPhotos.length > 1 ? 's' : ''} ready (compressed)
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>
