@@ -165,151 +165,149 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
-            <h1 className="text-2xl font-bold">Zennya AI Pipeline</h1>
-            <p className="text-purple-100 mt-1">Brian → Lester → Alessa → Pierre</p>
-          </div>
+    <div className="min-h-screen bg-[#9b90b4] flex items-center justify-center p-4">
+      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-[#9b90b4] to-[#b8adc9] p-6 text-white">
+          <h1 className="text-2xl font-bold">Zennya AI Pipeline</h1>
+          <p className="text-white/80 mt-1">Brian → Lester → Alessa → Pierre</p>
+        </div>
 
-          {/* Messages */}
-          <div className="h-[500px] overflow-y-auto p-6 space-y-4">
-            {messages.map((message, i) => (
+        {/* Messages */}
+        <div className="h-[500px] overflow-y-auto p-6 space-y-4 bg-gray-50">
+          {messages.map((message, i) => (
+            <div
+              key={i}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
               <div
-                key={i}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`max-w-[80%] rounded-2xl p-4 shadow-sm ${
+                  message.role === 'user'
+                    ? 'bg-[#9b90b4] text-white'
+                    : message.role === 'brian'
+                    ? 'bg-purple-50 border border-purple-200'
+                    : message.role === 'lester'
+                    ? 'bg-blue-50 border border-blue-200'
+                    : message.role === 'alessa'
+                    ? 'bg-green-50 border border-green-200'
+                    : message.role === 'pierre'
+                    ? 'bg-yellow-50 border border-yellow-200'
+                    : 'bg-white border border-gray-200'
+                }`}
               >
-                <div
-                  className={`max-w-[80%] rounded-2xl p-4 ${
-                    message.role === 'user'
-                      ? 'bg-purple-600 text-white'
-                      : message.role === 'brian'
-                      ? 'bg-purple-50 border border-purple-200'
-                      : message.role === 'lester'
-                      ? 'bg-blue-50 border border-blue-200'
-                      : message.role === 'alessa'
-                      ? 'bg-green-50 border border-green-200'
-                      : message.role === 'pierre'
-                      ? 'bg-yellow-50 border border-yellow-200'
-                      : 'bg-gray-100'
-                  }`}
-                >
-                  <div className="text-sm font-semibold mb-2">
-                    {message.role === 'user' ? 'You' : 
-                     message.role === 'brian' ? '🧠 Brian' :
-                     message.role === 'lester' ? '🛡️ Lester' :
-                     message.role === 'alessa' ? '✨ Alessa' :
-                     message.role === 'pierre' ? '🍌 Pierre' :
-                     'System'}
-                  </div>
-                  <div className="whitespace-pre-wrap text-sm">{message.content}</div>
-                  
-                  {message.images && message.images.length > 0 && (
-                    <div className="mt-4 space-y-4">
-                      {message.images.map((img, idx) => (
-                        <div key={idx} className="border rounded-lg overflow-hidden bg-white">
-                          <img
-                            src={`data:${img.mimeType};base64,${img.base64}`}
-                            alt={`Generated ${idx + 1}`}
-                            className="w-full"
-                          />
-                          <div className="p-3 flex items-center justify-between">
-                            <span className="text-xs text-gray-500">Image {img.index}</span>
-                            <button
-                              onClick={() => downloadImage(img.base64, img.mimeType, img.index)}
-                              className="flex items-center gap-1 px-3 py-1 bg-yellow-500 text-white text-xs rounded hover:bg-yellow-600"
-                            >
-                              <Download size={14} />
-                              Download
-                            </button>
-                          </div>
+                <div className="text-sm font-semibold mb-2">
+                  {message.role === 'user' ? 'You' : 
+                   message.role === 'brian' ? '🧠 Brian' :
+                   message.role === 'lester' ? '🛡️ Lester' :
+                   message.role === 'alessa' ? '✨ Alessa' :
+                   message.role === 'pierre' ? '🍌 Pierre' :
+                   'System'}
+                </div>
+                <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+                
+                {message.images && message.images.length > 0 && (
+                  <div className="mt-4 space-y-4">
+                    {message.images.map((img, idx) => (
+                      <div key={idx} className="border rounded-lg overflow-hidden bg-white">
+                        <img
+                          src={`data:${img.mimeType};base64,${img.base64}`}
+                          alt={`Generated ${idx + 1}`}
+                          className="w-full"
+                        />
+                        <div className="p-3 flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Image {img.index}</span>
+                          <button
+                            onClick={() => downloadImage(img.base64, img.mimeType, img.index)}
+                            className="flex items-center gap-1 px-3 py-1 bg-[#fd8c68] text-white text-xs rounded hover:bg-[#fc7a54]"
+                          >
+                            <Download size={14} />
+                            Download
+                          </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            
-            {loading && (
-              <div className="flex justify-start">
-                <div className="bg-gray-100 rounded-2xl p-4 flex items-center gap-2">
-                  <Loader2 className="animate-spin" size={16} />
-                  <span className="text-sm">Pipeline running...</span>
-                </div>
-              </div>
-            )}
-            
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Product Photos Upload Section */}
-          {productPhotos.length > 0 && (
-            <div className="px-6 py-3 bg-purple-50 border-t border-purple-100">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-semibold text-purple-700">Photos:</span>
-                {productPhotos.map((photo, i) => (
-                  <div key={i} className="flex items-center gap-1 bg-white px-2 py-1 rounded text-xs border border-purple-200">
-                    <span className="max-w-[100px] truncate">{photo.name}</span>
-                    <button
-                      onClick={() => removePhoto(i)}
-                      className="text-red-500 hover:text-red-700 ml-1"
-                    >
-                      ✕
-                    </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+              </div>
+            </div>
+          ))}
+          
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-white rounded-2xl p-4 flex items-center gap-2 shadow-sm border border-gray-200">
+                <Loader2 className="animate-spin text-[#9b90b4]" size={16} />
+                <span className="text-sm">Pipeline running...</span>
               </div>
             </div>
           )}
+          
+          <div ref={messagesEndRef} />
+        </div>
 
-          {/* Input */}
-          <div className="border-t border-gray-200 p-6 bg-gray-50">
-            <form onSubmit={handleSubmit} className="flex gap-2">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept="image/*"
-                multiple
-                className="hidden"
-              />
-              
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-3 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
-                title="Upload product photos"
-              >
-                📸
-              </button>
-              
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Describe your campaign..."
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
-                disabled={loading}
-              />
-              
-              <button
-                type="submit"
-                disabled={loading || !input.trim()}
-                className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
-              </button>
-            </form>
-            
-            {productPhotos.length > 0 && (
-              <p className="text-xs text-green-600 mt-2">
-                ✅ {productPhotos.length} photo{productPhotos.length > 1 ? 's' : ''} ready (compressed)
-              </p>
-            )}
+        {/* Product Photos Preview */}
+        {productPhotos.length > 0 && (
+          <div className="px-6 py-3 bg-purple-50 border-t border-purple-100">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-[#9b90b4]">📸 Photos:</span>
+              {productPhotos.map((photo, i) => (
+                <div key={i} className="flex items-center gap-1 bg-white px-2 py-1 rounded text-xs border border-purple-200">
+                  <span className="max-w-[100px] truncate">{photo.name}</span>
+                  <button
+                    onClick={() => removePhoto(i)}
+                    className="text-red-500 hover:text-red-700 ml-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
+        )}
+
+        {/* Input */}
+        <div className="border-t border-gray-200 p-6 bg-white">
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="image/*"
+              multiple
+              className="hidden"
+            />
+            
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="px-4 py-3 bg-white border-2 border-[#9b90b4] rounded-xl hover:bg-purple-50 transition-colors text-lg"
+              title="Upload product photos"
+            >
+              📸
+            </button>
+            
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Describe your campaign..."
+              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#9b90b4]"
+              disabled={loading}
+            />
+            
+            <button
+              type="submit"
+              disabled={loading || !input.trim()}
+              className="px-6 py-3 bg-[#9b90b4] text-white rounded-xl hover:bg-[#8a7fa3] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+            </button>
+          </form>
+          
+          {productPhotos.length > 0 && (
+            <p className="text-xs text-green-600 mt-2">
+              ✅ {productPhotos.length} photo{productPhotos.length > 1 ? 's' : ''} ready (compressed)
+            </p>
+          )}
         </div>
       </div>
     </div>
