@@ -7,12 +7,17 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-// IMPORT the Pierre function directly instead of HTTP call
-async function generateImage(prompt: string, model: string = 'gemini-2.5-flash-image') {
+// Generate image with optional product photos
+async function generateImage(
+  prompt: string, 
+  productPhotos: Array<{ base64: string; mimeType: string }> = [],
+  model: string = 'gemini-2.5-flash-image'
+) {
   try {
     console.log('🍌 Pierre generating image...');
     console.log('Model:', model);
     console.log('Prompt length:', prompt.length, 'chars');
+    console.log('Product photos:', productPhotos.length);
 
     const apiKey = process.env.NANOBANANA_API_KEY;
     
@@ -20,15 +25,28 @@ async function generateImage(prompt: string, model: string = 'gemini-2.5-flash-i
       throw new Error('NANOBANANA_API_KEY not set');
     }
 
+    // Build parts array: text prompt + product photos
+    const parts: any[] = [{ text: prompt }];
+    
+    // Add product photos if provided
+    for (const photo of productPhotos) {
+      parts.push({
+        inlineData: {
+          mimeType: photo.mimeType,
+          data: photo.base64
+        }
+      });
+    }
+
+    console.log('📦 Sending', parts.length, 'parts to NanoBanana');
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }]
+          contents: [{ parts }]
         }),
       }
     );
@@ -46,7 +64,7 @@ async function generateImage(prompt: string, model: string = 'gemini-2.5-flash-i
       throw new Error('No image returned from NanoBanana');
     }
 
-    console.log('✅ Image generated!');
+    console.log('✅ Image generated with product photos!');
     
     return {
       success: true,
@@ -68,9 +86,10 @@ async function generateImage(prompt: string, model: string = 'gemini-2.5-flash-i
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { prompt } = body;
+    const { prompt, productPhotos = [] } = body;
 
     console.log('🚀 Pipeline started');
+    console.log('📸 Product photos provided:', productPhotos.length);
 
     // STEP 1: BRIAN
     const agent1Prompt = readFileSync(join(process.cwd(), 'prompts', 'agent1_system.md'), 'utf-8');
@@ -123,14 +142,15 @@ export async function POST(request: NextRequest) {
     
     console.log(`🍌 Total prompts: ${imagePrompts.length}`);
     
-    // GENERATE IMAGES - DIRECT CALL, NO HTTP!
+    // GENERATE IMAGES WITH PRODUCT PHOTOS
     const generatedImages = [];
     
     if (imagePrompts.length > 0) {
       for (let i = 0; i < imagePrompts.length; i++) {
         console.log(`🍌 Generating image ${i + 1}/${imagePrompts.length}...`);
         
-        const imageData = await generateImage(imagePrompts[i]);
+        // Pass product photos to Pierre!
+        const imageData = await generateImage(imagePrompts[i], productPhotos);
         
         if (imageData.success) {
           generatedImages.push({

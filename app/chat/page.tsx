@@ -1,376 +1,278 @@
 'use client';
 
-import { useState } from 'react';
-import Image from 'next/image';
-
-type AgentName = 'BRIAN' | 'LESTER' | 'ALESSA';
-type SenderType = AgentName | 'USER' | 'SYSTEM' | 'PIERRE';
-
-interface GeneratedImage {
-  prompt: string;
-  image: {
-    base64: string;
-    mimeType: string;
-  };
-  index: number;
-}
+import { useState, useRef, useEffect } from 'react';
+import { Send, Loader2, Download } from 'lucide-react';
 
 interface Message {
-  id: number;
-  sender: SenderType;
-  text: string;
-  timestamp: Date;
-  images?: GeneratedImage[];
+  role: 'user' | 'brian' | 'lester' | 'alessa' | 'pierre' | 'system';
+  content: string;
+  images?: Array<{ base64: string; mimeType: string; prompt: string; index: number }>;
 }
-
-interface AgentConfig {
-  name: string;
-  avatar: string;
-  status: string;
-  color: string;
-}
-
-const AGENTS: Record<AgentName, AgentConfig> = {
-  BRIAN: {
-    name: 'Brian',
-    avatar: '/images/team/brian-avatar.jpg',
-    status: 'Campaign Strategist',
-    color: 'bg-blue-600',
-  },
-  LESTER: {
-    name: 'Lester',
-    avatar: '/images/team/lester-avatar.jpg',
-    status: 'Brand Safety',
-    color: 'bg-green-600',
-  },
-  ALESSA: {
-    name: 'Alessa',
-    avatar: '/images/team/alessa-avatar.jpg',
-    status: 'Prompt Engineer',
-    color: 'bg-purple-600',
-  },
-};
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      sender: 'BRIAN',
-      text: "Hey! I'm Brian, your Campaign Strategist. Ready to create some killer ad concepts? 💡",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [productPhotos, setProductPhotos] = useState<Array<{ base64: string; mimeType: string; name: string }>>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [inputText, setInputText] = useState('');
-  const [activeAgent, setActiveAgent] = useState<AgentName>('BRIAN');
-  const [isLoading, setIsLoading] = useState(false);
-  const [pipelineMode, setPipelineMode] = useState(false);
-
-  const addMessage = (sender: SenderType, text: string, images?: GeneratedImage[]) => {
-    const newMessage: Message = {
-      id: Date.now(),
-      sender,
-      text,
-      timestamp: new Date(),
-      images,
-    };
-    setMessages((prev) => [...prev, newMessage]);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handlePipelineMode = async () => {
-    if (!inputText.trim() || isLoading) return;
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
-    const userMessage = inputText.trim();
-    setInputText('');
-    addMessage('USER', userMessage);
-    setIsLoading(true);
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
 
-    addMessage('SYSTEM', '⚡ Starting pipeline...');
+    const newPhotos = [];
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        const base64Data = base64.split(',')[1]; // Remove data:image/jpeg;base64, prefix
+        
+        newPhotos.push({
+          base64: base64Data,
+          mimeType: file.type,
+          name: file.name
+        });
+        
+        if (newPhotos.length === files.length) {
+          setProductPhotos(prev => [...prev, ...newPhotos]);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setProductPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || loading) return;
+
+    const userMessage = input;
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setLoading(true);
 
     try {
       const response = await fetch('/api/pipeline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: userMessage }),
+        body: JSON.stringify({ 
+          prompt: userMessage,
+          productPhotos: productPhotos // Send photos with request
+        }),
       });
 
       const data = await response.json();
 
-      if (!data.success) {
-        console.error('Pipeline error:', data);
-        addMessage('SYSTEM', `❌ Error: ${data.error || 'Unknown error'}`);
-        return;
-      }
+      if (data.success) {
+        setMessages(prev => [
+          ...prev,
+          { role: 'brian', content: data.brian },
+          { role: 'lester', content: data.lester },
+          { role: 'alessa', content: data.alessa },
+        ]);
 
-      // Brian
-      addMessage('BRIAN', data.brian);
-      addMessage('SYSTEM', '✅ Concepts generated! Evaluating...');
+        if (data.images && data.images.length > 0) {
+          setMessages(prev => [
+            ...prev,
+            { role: 'pierre', content: `Generated ${data.images.length} images!`, images: data.images }
+          ]);
+        }
 
-      // Lester
-      addMessage('LESTER', data.lester);
-      addMessage('SYSTEM', '✅ Approved! Creating prompts...');
-
-      // Alessa
-      addMessage('ALESSA', data.alessa);
-      
-      // Pierre (NanoBanana) - Images
-      if (data.images && data.images.length > 0) {
-        addMessage('SYSTEM', `🍌 Pierre (NanoBanana Pro) generated ${data.images.length} images!`);
-        addMessage('PIERRE', `Generated ${data.images.length} concept visuals`, data.images);
+        setMessages(prev => [...prev, { role: 'system', content: '✅ Pipeline complete!' }]);
       } else {
-        addMessage('SYSTEM', '⚠️  No images generated - Alessa may not have created NanoBanana prompts');
+        setMessages(prev => [...prev, { role: 'system', content: `❌ Error: ${data.error}` }]);
       }
-      
-      addMessage('SYSTEM', '✅ Pipeline complete!');
-
     } catch (error: any) {
-      console.error('Pipeline error:', error);
-      addMessage('SYSTEM', `❌ Pipeline failed: ${error.message}`);
+      setMessages(prev => [...prev, { role: 'system', content: `❌ Error: ${error.message}` }]);
     } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSendMessage = async () => {
-    if (!inputText.trim() || isLoading) return;
-
-    const userMessage = inputText.trim();
-    setInputText('');
-    addMessage('USER', userMessage);
-    setIsLoading(true);
-
-    try {
-      let endpoint = '';
-      switch (activeAgent) {
-        case 'BRIAN':
-          endpoint = '/api/agent1';
-          break;
-        case 'LESTER':
-          endpoint = '/api/agent3';
-          break;
-        case 'ALESSA':
-          endpoint = '/api/agent2';
-          break;
-        default:
-          throw new Error('Invalid agent');
-      }
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: userMessage }),
-      });
-
-      if (!response.ok) throw new Error('Agent response failed');
-
-      const agentData = await response.json();
-      addMessage(activeAgent, agentData.result);
-    } catch (error) {
-      console.error('Error:', error);
-      addMessage(activeAgent, 'Sorry, I encountered an error. Please try again.');
-    } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const downloadImage = (base64: string, mimeType: string, index: number) => {
     const link = document.createElement('a');
     link.href = `data:${mimeType};base64,${base64}`;
-    link.download = `zennya-pierre-${index}-${Date.now()}.png`;
+    link.download = `pierre-image-${index}.${mimeType.split('/')[1]}`;
     link.click();
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 text-white">
-      {/* LEFT SIDEBAR */}
-      <div className="w-72 bg-gray-950/50 backdrop-blur-xl border-r border-gray-800/50 flex flex-col">
-        <div className="p-4 border-b border-gray-800/50">
-          <h1 className="text-xl font-bold">zennya<span className="text-orange-500">.team</span></h1>
-          <p className="text-sm text-gray-400">AI Creative Studio</p>
-        </div>
-
-        <div className="p-4 border-b border-gray-800/50">
-          <button
-            onClick={() => setPipelineMode(!pipelineMode)}
-            className={`w-full flex items-center justify-between p-3 rounded-lg transition-all ${
-              pipelineMode
-                ? 'bg-orange-500 text-white'
-                : 'bg-gray-800/50 border border-gray-700/50 hover:bg-gray-800'
-            }`}
-          >
-            <span className="font-semibold">
-              {pipelineMode ? '⚡ Pipeline Mode' : '🎯 Manual Mode'}
-            </span>
-          </button>
-          <p className="text-xs text-gray-400 mt-2">
-            {pipelineMode 
-              ? 'Brian → Lester → Alessa → Pierre 🍌' 
-              : 'Chat with individual agents'}
-          </p>
-        </div>
-
-        {!pipelineMode && (
-          <div className="space-y-4 p-4">
-            {(['BRIAN', 'LESTER', 'ALESSA'] as AgentName[]).map((key) => {
-              const agent = AGENTS[key];
-              return (
-                <button
-                  key={key}
-                  onClick={() => setActiveAgent(key)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
-                    activeAgent === key
-                      ? 'bg-gray-800/50 border border-gray-700/50'
-                      : 'hover:bg-gray-800/30'
-                  }`}
-                >
-                  <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
-                    <Image
-                      src={agent.avatar}
-                      alt={agent.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="text-left">
-                    <h3 className="font-semibold">{agent.name}</h3>
-                    <p className="text-sm text-gray-400">{agent.status}</p>
-                  </div>
-                </button>
-              );
-            })}
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar */}
+      <div className="w-64 bg-white border-r border-gray-200 p-4">
+        <h2 className="text-lg font-semibold mb-4">Zennya Pipeline</h2>
+        
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">🧠</div>
+            <span>Brian (Ideation)</span>
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">🛡️</div>
+            <span>Lester (Safety)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">✨</div>
+            <span>Alessa (Prompts)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">🍌</div>
+            <span>Pierre (Images)</span>
+          </div>
+        </div>
+
+        {/* Product Photos Section */}
+        <div className="mt-8">
+          <h3 className="text-sm font-semibold mb-2">Product Photos</h3>
+          <p className="text-xs text-gray-500 mb-3">Upload Eclipse/Halo photos so Pierre doesn't hallucinate</p>
+          
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept="image/*"
+            multiple
+            className="hidden"
+          />
+          
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            📸 Upload Photos
+          </button>
+          
+          {/* Display uploaded photos */}
+          <div className="mt-3 space-y-2">
+            {productPhotos.map((photo, i) => (
+              <div key={i} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded">
+                <span className="truncate">{photo.name}</span>
+                <button
+                  onClick={() => removePhoto(i)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+          
+          {productPhotos.length > 0 && (
+            <p className="text-xs text-green-600 mt-2">
+              ✅ {productPhotos.length} photo{productPhotos.length > 1 ? 's' : ''} ready
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* MAIN CHAT */}
+      {/* Chat Area */}
       <div className="flex-1 flex flex-col">
-        <div className="bg-gray-950/50 backdrop-blur-xl border-b border-gray-800/50 p-4">
-          <div className="flex items-center gap-3">
-            {pipelineMode ? (
-              <>
-                <div className="text-2xl">⚡</div>
-                <div>
-                  <h2 className="font-semibold">Full Pipeline</h2>
-                  <p className="text-sm text-gray-400">Auto-generates images with Pierre 🍌</p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
-                  <Image
-                    src={AGENTS[activeAgent].avatar}
-                    alt={AGENTS[activeAgent].name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div>
-                  <h2 className="font-semibold">{AGENTS[activeAgent].name}</h2>
-                  <p className="text-sm text-gray-400">{AGENTS[activeAgent].status}</p>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.map((msg) => (
-            <div key={msg.id}>
-              <div className={`flex gap-3 ${msg.sender === 'USER' ? 'flex-row-reverse' : ''}`}>
-                {msg.sender !== 'USER' && msg.sender !== 'SYSTEM' && msg.sender !== 'PIERRE' && (
-                  <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
-                    <Image
-                      src={AGENTS[msg.sender as AgentName].avatar}
-                      alt={AGENTS[msg.sender as AgentName].name}
-                      fill
-                      className="object-cover"
-                    />
+          {messages.map((message, i) => (
+            <div
+              key={i}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-3xl rounded-lg p-4 ${
+                  message.role === 'user'
+                    ? 'bg-purple-600 text-white'
+                    : message.role === 'brian'
+                    ? 'bg-purple-50 border border-purple-200'
+                    : message.role === 'lester'
+                    ? 'bg-blue-50 border border-blue-200'
+                    : message.role === 'alessa'
+                    ? 'bg-green-50 border border-green-200'
+                    : message.role === 'pierre'
+                    ? 'bg-yellow-50 border border-yellow-200'
+                    : 'bg-gray-100'
+                }`}
+              >
+                <div className="text-sm font-semibold mb-2">
+                  {message.role === 'user' ? 'You' : 
+                   message.role === 'brian' ? '🧠 Brian' :
+                   message.role === 'lester' ? '🛡️ Lester' :
+                   message.role === 'alessa' ? '✨ Alessa' :
+                   message.role === 'pierre' ? '🍌 Pierre' :
+                   'System'}
+                </div>
+                <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+                
+                {/* Display images */}
+                {message.images && message.images.length > 0 && (
+                  <div className="mt-4 space-y-4">
+                    {message.images.map((img, idx) => (
+                      <div key={idx} className="border rounded-lg overflow-hidden bg-white">
+                        <img
+                          src={`data:${img.mimeType};base64,${img.base64}`}
+                          alt={`Generated ${idx + 1}`}
+                          className="w-full"
+                        />
+                        <div className="p-3 flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Image {img.index}</span>
+                          <button
+                            onClick={() => downloadImage(img.base64, img.mimeType, img.index)}
+                            className="flex items-center gap-1 px-3 py-1 bg-yellow-500 text-white text-xs rounded hover:bg-yellow-600"
+                          >
+                            <Download size={14} />
+                            Download
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
-                <div
-                  className={`max-w-2xl rounded-lg p-4 ${
-                    msg.sender === 'USER'
-                      ? 'bg-orange-500/20 border border-orange-500/30'
-                      : msg.sender === 'SYSTEM'
-                      ? 'bg-gray-700/30 border border-gray-600/30 text-gray-300 text-sm'
-                      : msg.sender === 'PIERRE'
-                      ? 'bg-yellow-500/20 border border-yellow-500/30'
-                      : 'bg-gray-800/50 border border-gray-700/50'
-                  }`}
-                >
-                  {msg.sender !== 'USER' && msg.sender !== 'SYSTEM' && msg.sender !== 'PIERRE' && (
-                    <p className="text-xs text-gray-400 mb-2">{AGENTS[msg.sender as AgentName].name}</p>
-                  )}
-                  {msg.sender === 'PIERRE' && (
-                    <p className="text-xs text-yellow-400 mb-2">🍌 Pierre (NanoBanana Pro)</p>
-                  )}
-                  <p className="whitespace-pre-wrap">{msg.text}</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {msg.timestamp.toLocaleTimeString()}
-                  </p>
-                </div>
               </div>
-              
-              {/* Display images */}
-              {msg.images && msg.images.length > 0 && (
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ml-13">
-                  {msg.images.map((img, idx) => (
-                    <div key={idx} className="bg-gray-800/50 border border-yellow-500/30 rounded-lg p-3">
-                      <div className="relative w-full aspect-[9/16] mb-2 rounded overflow-hidden bg-gray-900">
-                        <img
-                          src={`data:${img.image.mimeType};base64,${img.image.base64}`}
-                          alt={`Pierre generated ${img.index}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <p className="text-xs text-gray-400 mb-2 line-clamp-2">{img.prompt.substring(0, 100)}...</p>
-                      <button
-                        onClick={() => downloadImage(img.image.base64, img.image.mimeType, img.index)}
-                        className="w-full bg-yellow-500 hover:bg-yellow-600 text-black text-xs py-2 px-3 rounded transition-all font-semibold"
-                      >
-                        🍌 Download #{img.index}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           ))}
-          {isLoading && (
-            <div className="flex gap-3">
-              <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
-                <p className="text-gray-400">
-                  {pipelineMode ? '⚡ Running pipeline...' : 'Thinking...'}
-                </p>
+          
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-gray-100 rounded-lg p-4 flex items-center gap-2">
+                <Loader2 className="animate-spin" size={16} />
+                <span className="text-sm">Pipeline running...</span>
               </div>
             </div>
           )}
+          
+          <div ref={messagesEndRef} />
         </div>
 
-        <div className="bg-gray-950/50 backdrop-blur-xl border-t border-gray-800/50 p-4">
-          <div className="flex gap-3">
-            <textarea
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  pipelineMode ? handlePipelineMode() : handleSendMessage();
-                }
-              }}
-              placeholder={pipelineMode ? "Describe your campaign..." : `Message ${AGENTS[activeAgent].name}...`}
-              className="flex-1 bg-gray-800/50 border border-gray-700/50 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500/50 resize-none"
-              disabled={isLoading}
-              rows={3}
+        {/* Input */}
+        <div className="border-t border-gray-200 p-4 bg-white">
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Describe your campaign..."
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              disabled={loading}
             />
             <button
-              onClick={pipelineMode ? handlePipelineMode : handleSendMessage}
-              disabled={isLoading || !inputText.trim()}
-              className="bg-orange-500 hover:bg-orange-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white px-6 rounded-lg font-semibold transition-all self-end"
+              type="submit"
+              disabled={loading || !input.trim()}
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {pipelineMode ? '⚡ Run' : 'Send'}
+              {loading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
             </button>
-          </div>
+          </form>
         </div>
       </div>
     </div>
