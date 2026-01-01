@@ -15,113 +15,61 @@ export async function POST(request: NextRequest) {
     console.log('🚀 Pipeline started');
 
     // STEP 1: BRIAN
-    console.log('🤖 Brian (Sonnet 4)...');
     const agent1Prompt = readFileSync(join(process.cwd(), 'prompts', 'agent1_system.md'), 'utf-8');
-    
     const brianResponse = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 3000,
       temperature: 0.7,
-      system: [
-        {
-          type: "text",
-          text: agent1Prompt,
-          cache_control: { type: "ephemeral" }
-        }
-      ],
+      system: [{ type: "text", text: agent1Prompt, cache_control: { type: "ephemeral" } }],
       messages: [{ role: 'user', content: prompt }],
     });
-    
     const brianResult = brianResponse.content[0].type === 'text' ? brianResponse.content[0].text : '';
-    console.log('✅ Brian done');
 
     // STEP 2: LESTER
-    console.log('🤖 Lester (Sonnet 4)...');
     const agent3Prompt = readFileSync(join(process.cwd(), 'prompts', 'agent3_system.md'), 'utf-8');
-    
     const lesterResponse = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
       temperature: 0.3,
-      system: [
-        {
-          type: "text",
-          text: agent3Prompt,
-          cache_control: { type: "ephemeral" }
-        }
-      ],
+      system: [{ type: "text", text: agent3Prompt, cache_control: { type: "ephemeral" } }],
       messages: [{ role: 'user', content: `Evaluate these concepts:\n\n${brianResult}` }],
     });
-    
     const lesterResult = lesterResponse.content[0].type === 'text' ? lesterResponse.content[0].text : '';
-    console.log('✅ Lester done');
 
     // STEP 3: ALESSA
-    console.log('🤖 Alessa (Sonnet 4)...');
     const agent2Prompt = readFileSync(join(process.cwd(), 'prompts', 'agent2_system.md'), 'utf-8');
-    
     const alessaResponse = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2500,
       temperature: 0.5,
-      system: [
-        {
-          type: "text",
-          text: agent2Prompt,
-          cache_control: { type: "ephemeral" }
-        }
-      ],
+      system: [{ type: "text", text: agent2Prompt, cache_control: { type: "ephemeral" } }],
       messages: [{ role: 'user', content: `Generate prompts for these approved concepts:\n\n${lesterResult}` }],
     });
-    
     const alessaResult = alessaResponse.content[0].type === 'text' ? alessaResponse.content[0].text : '';
-    console.log('✅ Alessa done');
+
+    console.log('✅ All agents done');
 
     // ============================================
-    // STEP 4: EXTRACT - MATCH WITH AND WITHOUT EMOJI 🍌
+    // EXTRACT PROMPTS - SUPER SIMPLE NOW! 🍌
     // ============================================
-    console.log('🍌 Pierre extracting prompts...');
+    console.log('🍌 Extracting prompts from Alessa...');
     
     const imagePrompts: string[] = [];
     
-    // Match BOTH formats:
-    // 1. ✨ **POSITIVE PROMPT:**
-    // 2. **Positive Prompt:**
-    const regex = /(?:✨\s*)?\*\*(?:POSITIVE PROMPT|Positive Prompt):\*\*\s*```[^\n]*\n([\s\S]*?)```/gi;
+    // Match: PROMPT_N: followed by ```content```
+    const promptRegex = /PROMPT_\d+:\s*```\s*([^`]+?)```/gs;
     let match;
     
-    while ((match = regex.exec(alessaResult)) !== null) {
-      let rawPrompt = match[1].trim();
+    while ((match = promptRegex.exec(alessaResult)) !== null) {
+      const promptText = match[1].trim();
       
-      console.log('🔍 Found raw prompt:', rawPrompt.substring(0, 100) + '...');
-      
-      // Clean it up
-      const lines = rawPrompt.split('\n');
-      const cleanedLines = lines.filter(line => {
-        const trimmed = line.trim();
-        if (!trimmed) return false;
-        if (trimmed.startsWith('Use uploaded')) return false;
-        if (trimmed === 'NO text. NO logo.') return false;
-        if (trimmed.includes('NO text.')) return false;
-        if (trimmed.includes('NO logo.')) return false;
-        // Skip technical params
-        if (trimmed.match(/^\([^)]+:\d+/)) return false;
-        return true;
-      });
-      
-      let cleanPrompt = cleanedLines.join(' ').replace(/\s+/g, ' ').trim();
-      
-      // Remove trailing params
-      cleanPrompt = cleanPrompt.replace(/,?\s*\([^)]+:\d+[^)]*\).*$/g, '');
-      cleanPrompt = cleanPrompt.replace(/\s*,\s*$/, '');
-      
-      if (cleanPrompt.length > 50) {
-        imagePrompts.push(cleanPrompt);
-        console.log(`✅ Clean prompt ${imagePrompts.length}: ${cleanPrompt.substring(0, 150)}...`);
+      if (promptText.length > 50) {
+        imagePrompts.push(promptText);
+        console.log(`✅ Extracted prompt #${imagePrompts.length}: ${promptText.substring(0, 100)}...`);
       }
     }
     
-    console.log(`🍌 Total prompts extracted: ${imagePrompts.length}`);
+    console.log(`🍌 Total prompts found: ${imagePrompts.length}`);
     
     // ============================================
     // GENERATE IMAGES 🍌
@@ -129,12 +77,10 @@ export async function POST(request: NextRequest) {
     const generatedImages = [];
     
     if (imagePrompts.length > 0) {
-      const uniquePrompts = [...new Set(imagePrompts)].slice(0, 3);
-      
-      for (let i = 0; i < uniquePrompts.length; i++) {
-        const promptText = uniquePrompts[i];
+      for (let i = 0; i < imagePrompts.length; i++) {
+        const promptText = imagePrompts[i];
         
-        console.log(`🍌 Pierre generating image ${i + 1}...`);
+        console.log(`🍌 Generating image ${i + 1}/${imagePrompts.length}...`);
         
         try {
           const imageResponse = await fetch(`${request.nextUrl.origin}/api/generate-image`, {
@@ -150,7 +96,7 @@ export async function POST(request: NextRequest) {
           
           if (imageData.success) {
             generatedImages.push({
-              prompt: promptText,
+              prompt: promptText.substring(0, 200),
               image: imageData.image,
               index: i + 1
             });
@@ -162,11 +108,9 @@ export async function POST(request: NextRequest) {
           console.error(`❌ Image ${i + 1} error:`, error.message);
         }
       }
-    } else {
-      console.log('❌ NO PROMPTS FOUND');
     }
 
-    console.log(`🎉 Pipeline done! ${generatedImages.length} images generated`);
+    console.log(`🎉 Pipeline complete! ${generatedImages.length} images generated`);
 
     return NextResponse.json({
       success: true,
@@ -178,7 +122,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ ERROR:', error);
+    console.error('❌ Pipeline error:', error);
     return NextResponse.json({
       success: false,
       error: error.message,
