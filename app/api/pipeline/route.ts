@@ -7,6 +7,64 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// IMPORT the Pierre function directly instead of HTTP call
+async function generateImage(prompt: string, model: string = 'gemini-2.5-flash-image') {
+  try {
+    console.log('🍌 Pierre generating image...');
+    console.log('Model:', model);
+    console.log('Prompt length:', prompt.length, 'chars');
+
+    const apiKey = process.env.NANOBANANA_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error('NANOBANANA_API_KEY not set');
+    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }]
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('🍌 NanoBanana API Error:', error);
+      throw new Error(`NanoBanana failed: ${error}`);
+    }
+
+    const data = await response.json();
+    const imageData = data.candidates?.[0]?.content?.parts?.find((part: any) => part.inlineData)?.inlineData;
+    
+    if (!imageData) {
+      throw new Error('No image returned from NanoBanana');
+    }
+
+    console.log('✅ Image generated!');
+    
+    return {
+      success: true,
+      image: {
+        base64: imageData.data,
+        mimeType: imageData.mimeType || 'image/png',
+      }
+    };
+
+  } catch (error: any) {
+    console.error('❌ Pierre error:', error.message);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -49,116 +107,45 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ All agents done');
 
-    // ============================================
-    // DEBUG: SHOW ALESSA OUTPUT 🔍
-    // ============================================
-    console.log('');
-    console.log('🔍 ========================================');
-    console.log('🔍 ALESSA RAW OUTPUT (first 2000 chars):');
-    console.log('🔍 ========================================');
-    console.log(alessaResult.substring(0, 2000));
-    console.log('🔍 ========================================');
-    console.log('');
-    
-    // ============================================
-    // EXTRACT PROMPTS 🍌
-    // ============================================
-    console.log('🍌 Starting extraction...');
-    
+    // EXTRACT PROMPTS
+    console.log('🍌 Extracting prompts...');
     const imagePrompts: string[] = [];
-    
-    // Try to match PROMPT_N: ```content```
     const promptRegex = /PROMPT_\d+:\s*```\s*([^`]+?)```/gs;
-    
-    console.log('🔍 Testing regex against Alessa output...');
     let match;
-    let matchCount = 0;
     
     while ((match = promptRegex.exec(alessaResult)) !== null) {
-      matchCount++;
       const promptText = match[1].trim();
-      
-      console.log(`🔍 Match #${matchCount} found!`);
-      console.log(`   Length: ${promptText.length} chars`);
-      console.log(`   First 150 chars: ${promptText.substring(0, 150)}`);
-      
       if (promptText.length > 50) {
         imagePrompts.push(promptText);
-        console.log(`✅ ADDED as prompt #${imagePrompts.length}`);
-      } else {
-        console.log(`❌ SKIPPED - too short`);
+        console.log(`✅ Extracted prompt #${imagePrompts.length}`);
       }
     }
     
-    console.log('');
-    console.log(`🔍 Regex found ${matchCount} matches`);
-    console.log(`🔍 Extracted ${imagePrompts.length} valid prompts`);
-    console.log('');
+    console.log(`🍌 Total prompts: ${imagePrompts.length}`);
     
-    // ============================================
-    // GENERATE IMAGES 🍌
-    // ============================================
+    // GENERATE IMAGES - DIRECT CALL, NO HTTP!
     const generatedImages = [];
     
     if (imagePrompts.length > 0) {
-      console.log(`🍌 Starting image generation for ${imagePrompts.length} prompts...`);
-      
       for (let i = 0; i < imagePrompts.length; i++) {
-        const promptText = imagePrompts[i];
+        console.log(`🍌 Generating image ${i + 1}/${imagePrompts.length}...`);
         
-        console.log('');
-        console.log(`🍌 ========================================`);
-        console.log(`🍌 IMAGE ${i + 1}/${imagePrompts.length}`);
-        console.log(`🍌 ========================================`);
-        console.log(`Prompt length: ${promptText.length} chars`);
-        console.log(`First 200 chars: ${promptText.substring(0, 200)}`);
-        console.log(`Calling Pierre at: ${request.nextUrl.origin}/api/generate-image`);
+        const imageData = await generateImage(imagePrompts[i]);
         
-        try {
-          const imageResponse = await fetch(`${request.nextUrl.origin}/api/generate-image`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              prompt: promptText,
-              model: 'gemini-2.5-flash-image'
-            }),
+        if (imageData.success) {
+          generatedImages.push({
+            prompt: imagePrompts[i].substring(0, 200),
+            image: imageData.image,
+            index: i + 1
           });
-          
-          console.log(`Pierre response status: ${imageResponse.status}`);
-          
-          const imageData = await imageResponse.json();
-          console.log(`Pierre response:`, JSON.stringify(imageData).substring(0, 200));
-          
-          if (imageData.success) {
-            generatedImages.push({
-              prompt: promptText.substring(0, 200),
-              image: imageData.image,
-              index: i + 1
-            });
-            console.log(`✅ Image ${i + 1} SUCCESS!`);
-          } else {
-            console.error(`❌ Image ${i + 1} FAILED:`, imageData.error);
-          }
-        } catch (error: any) {
-          console.error(`❌ Image ${i + 1} ERROR:`, error.message);
-          console.error(`   Stack:`, error.stack);
+          console.log(`✅ Image ${i + 1} SUCCESS!`);
+        } else {
+          console.error(`❌ Image ${i + 1} FAILED:`, imageData.error);
         }
-        
-        console.log(`🍌 ========================================`);
       }
-    } else {
-      console.log('');
-      console.log('❌ ========================================');
-      console.log('❌ NO PROMPTS EXTRACTED!');
-      console.log('❌ ========================================');
-      console.log('Alessa output length:', alessaResult.length);
-      console.log('Contains "PROMPT_"?', alessaResult.includes('PROMPT_'));
-      console.log('Contains "```"?', alessaResult.includes('```'));
-      console.log('❌ ========================================');
     }
 
-    console.log('');
-    console.log(`🎉 PIPELINE COMPLETE: ${generatedImages.length} images generated`);
+    console.log(`🎉 Pipeline complete! ${generatedImages.length} images generated`);
 
     return NextResponse.json({
       success: true,
@@ -166,21 +153,14 @@ export async function POST(request: NextRequest) {
       lester: lesterResult,
       alessa: alessaResult,
       images: generatedImages,
-      imagesGenerated: generatedImages.length,
-      debug: {
-        alessaOutputLength: alessaResult.length,
-        alessaPreview: alessaResult.substring(0, 500),
-        promptsExtracted: imagePrompts.length,
-        matchesFound: matchCount
-      }
+      imagesGenerated: generatedImages.length
     });
 
   } catch (error: any) {
-    console.error('❌ PIPELINE ERROR:', error);
+    console.error('❌ Pipeline error:', error);
     return NextResponse.json({
       success: false,
       error: error.message,
-      stack: error.stack
     }, { status: 500 });
   }
 }
