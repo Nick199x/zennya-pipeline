@@ -25,6 +25,61 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages]);
 
+  // COMPRESS IMAGE TO AVOID 4.5MB VERCEL LIMIT
+  const compressImage = (file: File): Promise<{ base64: string; mimeType: string; name: string }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          // Create canvas
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+          
+          // Calculate new dimensions (max 800px width, maintain aspect ratio)
+          let width = img.width;
+          let height = img.height;
+          const maxWidth = 800;
+          
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw and compress
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Convert to base64 with quality compression (0.7 = 70% quality)
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          const base64Data = compressedBase64.split(',')[1];
+          
+          console.log(`📸 Compressed ${file.name}: ${file.size} bytes → ${base64Data.length * 0.75} bytes`);
+          
+          resolve({
+            base64: base64Data,
+            mimeType: 'image/jpeg',
+            name: file.name
+          });
+        };
+        
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = e.target?.result as string;
+      };
+      
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -34,23 +89,21 @@ export default function ChatPage() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       
-      // Convert to base64
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        const base64Data = base64.split(',')[1]; // Remove data:image/jpeg;base64, prefix
-        
-        newPhotos.push({
-          base64: base64Data,
-          mimeType: file.type,
-          name: file.name
-        });
-        
-        if (newPhotos.length === files.length) {
-          setProductPhotos(prev => [...prev, ...newPhotos]);
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        // Compress before adding
+        const compressed = await compressImage(file);
+        newPhotos.push(compressed);
+        console.log(`✅ Added ${file.name} (compressed)`);
+      } catch (error) {
+        console.error(`❌ Failed to compress ${file.name}:`, error);
+      }
+    }
+    
+    setProductPhotos(prev => [...prev, ...newPhotos]);
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -73,7 +126,7 @@ export default function ChatPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           prompt: userMessage,
-          productPhotos: productPhotos // Send photos with request
+          productPhotos: productPhotos
         }),
       });
 
@@ -90,7 +143,7 @@ export default function ChatPage() {
         if (data.images && data.images.length > 0) {
           setMessages(prev => [
             ...prev,
-            { role: 'pierre', content: `Generated ${data.images.length} images!`, images: data.images }
+            { role: 'pierre', content: `Generated ${data.images.length} images using your product photos!`, images: data.images }
           ]);
         }
 
@@ -175,7 +228,7 @@ export default function ChatPage() {
           
           {productPhotos.length > 0 && (
             <p className="text-xs text-green-600 mt-2">
-              ✅ {productPhotos.length} photo{productPhotos.length > 1 ? 's' : ''} ready
+              ✅ {productPhotos.length} photo{productPhotos.length > 1 ? 's' : ''} ready (compressed)
             </p>
           )}
         </div>
